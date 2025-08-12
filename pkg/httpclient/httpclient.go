@@ -27,7 +27,6 @@ func DoRequest(ctx context.Context, client *http.Client, method, url string, bod
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
-
 	// Log the request if verbose is enabled
 	if verbose {
 		fmt.Printf("HTTP Request:\nMethod: %s\nURL: %s\nHeaders: %v\nBody: %s\n", method, url, headers, string(body))
