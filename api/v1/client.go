@@ -1,18 +1,19 @@
 package rxtspot
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/rackspace-spot/spot-go-sdk/pkg/httpclient"
+	"k8s.io/klog/v2"
 )
 
 // Configuration struct for RackspaceSpotClient
@@ -22,6 +23,7 @@ type Config struct {
 	HTTPClient   *http.Client
 	RefreshToken string
 	Timeout      time.Duration
+	LogLevel     int
 }
 
 // RackspaceSpotClient is the main client for interacting with the Rackspace Spot API.
@@ -90,66 +92,55 @@ func (c *RackspaceSpotClient) authHeader() map[string]string {
 
 // ListOrganizations retrieves all organizations accessible by the user.
 func (c *RackspaceSpotClient) ListOrganizations(ctx context.Context) ([]Organization, error) {
-	url := fmt.Sprintf("%s/apis/auth.ngpc.rxt.io/v1/organizations", c.BaseURL) // Corrected endpoint
-	resp, err := httpclient.DoRequest(ctx, c.HTTPClient, http.MethodGet, url, nil, c.authHeader())
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		b, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to list organizations: %s", string(b))
-	}
+	url := fmt.Sprintf("%s/apis/auth.ngpc.rxt.io/v1/organizations", c.BaseURL) // Correct URL
 
-	// Adjust unmarshaling to handle the correct JSON structure
+	// Structure for decoding
 	var response struct {
 		Organizations []Organization `json:"organizations"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+
+	// Pass &response to doRequest so it decodes automatically
+	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &response); err != nil {
+		// Specific 403 handling if doRequest returns your custom HTTPStatusError
+		if strings.Contains(err.Error(), "403 Forbidden") {
+			return nil, fmt.Errorf("access denied: you do not have permission to list organizations")
+		}
+		return nil, err
 	}
 
 	return response.Organizations, nil
 }
 
 // ListCloudspaces retrieves all cloudspaces in a namespace.
+
 func (c *RackspaceSpotClient) ListCloudspaces(ctx context.Context, namespace string) (*CloudSpaceList, error) {
 	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/cloudspaces", c.BaseURL, url.PathEscape(namespace))
-	resp, err := httpclient.DoRequest(ctx, c.HTTPClient, http.MethodGet, url, nil, c.authHeader())
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
 
-	fmt.Printf("url to list cloudspaces: %s\n", url)
-	if resp.StatusCode == http.StatusForbidden {
-		return nil, fmt.Errorf("access denied: you do not have permission to list cloudspaces in the organization '%s'", namespace)
-	}
-
+	// Pass &interm to be populated by doRequest JSON decoding
 	var interm cloudSpaceListResponse
-	if err := json.NewDecoder(resp.Body).Decode(&interm); err != nil {
+	err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &interm)
+	if err != nil {
+		if strings.Contains(err.Error(), "403 Forbidden") { // You could even make this custom
+			return nil, fmt.Errorf("access denied: you do not have permission to list cloudspaces in the organization '%s'", namespace)
+		}
 		return nil, err
 	}
 
 	var finalList CloudSpaceList
 	for _, cs := range interm.Items {
 		finalList.Items = append(finalList.Items, CloudSpace{
-			Name:              cs.Metadata.Name,
-			OrgID:             cs.Metadata.Namespace,
-			CreationTimestamp: cs.Metadata.CreationTimestamp,
-			//	BidRequests:       cs.Spec.BidRequests,
-			//Cloud:             cs.Spec.Cloud,
-			Cni:               cs.Spec.Cni,
-			DeploymentType:    cs.Spec.DeploymentType,
-			GpuEnabled:        cs.Spec.GpuEnabled,
-			KubernetesVersion: cs.Spec.KubernetesVersion,
-			Region:            cs.Spec.Region,
-			//Type:              cs.Spec.Type,
+			Name:                 cs.Metadata.Name,
+			OrgID:                cs.Metadata.Namespace,
+			CreationTimestamp:    cs.Metadata.CreationTimestamp,
+			Cni:                  cs.Spec.Cni,
+			DeploymentType:       cs.Spec.DeploymentType,
+			GpuEnabled:           cs.Spec.GpuEnabled,
+			KubernetesVersion:    cs.Spec.KubernetesVersion,
+			Region:               cs.Spec.Region,
 			PreemptionWebhookURL: cs.Spec.Webhook,
 			APIServerEndpoint:    cs.Status.APIServerEndpoint,
 			AssignedServers:      cs.Status.AssignedServers,
-			//	Bids:              cs.Status.Bids,
-			Health: cs.Status.Health,
+			Health:               cs.Status.Health,
 		})
 	}
 	return &finalList, nil
@@ -195,18 +186,13 @@ func (c *RackspaceSpotClient) CreateCloudspace(ctx context.Context, cs CloudSpac
 
 	body, err := json.Marshal(cloudspaceCreateRequestBody)
 	if err != nil {
-		fmt.Printf("%v\n", err)
 		return err
 	}
-	resp, err := httpclient.DoRequest(ctx, c.HTTPClient, http.MethodPost, url, body, c.authHeader())
-	if err != nil {
-		fmt.Printf("%v\n", err)
+	if err := c.doRequest(ctx, http.MethodPost, url, body, c.authHeader(), nil); err != nil {
+		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
+			return fmt.Errorf("access denied: you do not have permission to create the cloudspace '%s'", cs.Name)
+		}
 		return err
-	}
-
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%s", resp.Status)
 	}
 	return nil
 }
@@ -214,82 +200,84 @@ func (c *RackspaceSpotClient) CreateCloudspace(ctx context.Context, cs CloudSpac
 // DeleteCloudspace deletes a cloudspace by name in the given namespace.
 func (c *RackspaceSpotClient) DeleteCloudspace(ctx context.Context, namespace, name string) error {
 	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/cloudspaces/%s", c.BaseURL, namespace, name)
-	resp, err := httpclient.DoRequest(ctx, c.HTTPClient, http.MethodDelete, url, nil, c.authHeader())
+	err := c.doRequest(ctx, http.MethodDelete, url, nil, c.authHeader(), nil)
 	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%s", resp.Status)
+		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
+			return fmt.Errorf("access denied: you do not have permission to delete the cloudspace '%s'", name)
+		} else {
+			if httpErr.StatusCode == http.StatusNotFound {
+				return fmt.Errorf("cloudspace '%s' not found", name)
+			}
+			return err
+		}
 	}
 	return nil
 }
 
 // GetCloudspace retrieves a cloudspace by name in the given namespace.
 func (c *RackspaceSpotClient) GetCloudspace(ctx context.Context, namespace, name string) (*CloudSpace, error) {
-	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/cloudspaces/%s", c.BaseURL, url.PathEscape(namespace), url.PathEscape(name))
-
-	resp, err := httpclient.DoRequest(ctx, c.HTTPClient, http.MethodGet, url, nil, c.authHeader())
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("cloudspace %s not found", name)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get cloudspace: %s", resp.Status)
-	}
+	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/cloudspaces/%s",
+		c.BaseURL, url.PathEscape(namespace), url.PathEscape(name))
 
 	var interm cloudSpaceGetResponse
-	if err := json.NewDecoder(resp.Body).Decode(&interm); err != nil {
-		fmt.Printf("failed to decode response: %v\n", err)
+
+	// Pass &interm so doRequest will JSON unmarshal into it
+	err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &interm)
+	if err != nil {
+		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
+			return nil, fmt.Errorf("access denied: you do not have permission to get the cloudspace '%s'", name)
+		}
 		return nil, err
 	}
 
+	// Spot node pools
 	spotNodePools, err := c.ListSpotNodePools(ctx, namespace, interm.Metadata.Name)
 	if err != nil {
 		return nil, err
 	}
+
+	// OnDemand node pools
+	onDemandNodePools, err := c.ListOnDemandNodePools(ctx, namespace, interm.Metadata.Name)
+	if err != nil {
+		return nil, err
+	}
+
 	finalList := CloudSpace{
-		Name:              interm.Metadata.Name,
-		OrgID:             interm.Metadata.Namespace,
-		CreationTimestamp: interm.Metadata.CreationTimestamp,
-		//Cloud:             interm.Spec.Cloud,
-		Cni:               interm.Spec.Cni,
-		DeploymentType:    interm.Spec.DeploymentType,
-		GpuEnabled:        interm.Spec.GpuEnabled,
-		KubernetesVersion: interm.Spec.KubernetesVersion,
-		Region:            interm.Spec.Region,
-		//Type:              interm.Spec.Type,
+		Name:                 interm.Metadata.Name,
+		OrgID:                interm.Metadata.Namespace,
+		CreationTimestamp:    interm.Metadata.CreationTimestamp,
+		Cni:                  interm.Spec.Cni,
+		DeploymentType:       interm.Spec.DeploymentType,
+		GpuEnabled:           interm.Spec.GpuEnabled,
+		KubernetesVersion:    interm.Spec.KubernetesVersion,
+		Region:               interm.Spec.Region,
 		PreemptionWebhookURL: interm.Spec.Webhook,
 		APIServerEndpoint:    interm.Status.APIServerEndpoint,
 		AssignedServers:      interm.Status.AssignedServers,
 		SpotNodepools:        spotNodePools,
+		OnDemandNodePools:    onDemandNodePools,
 		Health:               interm.Status.Health,
 	}
+
 	return &finalList, nil
 }
 
 // ListSpotNodePools retrieves all spot node pools in a namespace.
-func (c *RackspaceSpotClient) ListSpotNodePools(ctx context.Context, namespace string, cloudspaceName string) ([]*SpotNodePool, error) {
+func (c *RackspaceSpotClient) ListSpotNodePools(ctx context.Context, namespace, cloudspaceName string) ([]*SpotNodePool, error) {
 	labelKey := "ngpc.rxt.io/cloudspace"
 	labelSelector := fmt.Sprintf("%s=%s", labelKey, cloudspaceName)
 	encodedSelector := url.QueryEscape(labelSelector)
 
-	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/spotnodepools?labelSelector=%s", c.BaseURL, namespace, encodedSelector)
+	url := fmt.Sprintf(
+		"%s/apis/ngpc.rxt.io/v1/namespaces/%s/spotnodepools?labelSelector=%s",
+		c.BaseURL, namespace, encodedSelector,
+	)
 
-	resp, err := httpclient.DoRequest(ctx, c.HTTPClient, http.MethodGet, url, nil, c.authHeader())
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%s", resp.Status)
-	}
 	var pool SpotNodePoolListResponse
-	if err := json.NewDecoder(resp.Body).Decode(&pool); err != nil {
+	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &pool); err != nil {
+		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
+			return nil, fmt.Errorf("access denied: you do not have permission to list spot node pools in the namespace '%s'", namespace)
+		}
 		return nil, err
 	}
 
@@ -358,24 +346,16 @@ func (c *RackspaceSpotClient) CreateSpotNodePool(ctx context.Context, pool SpotN
 
 	body, err := json.Marshal(spotNodePoolCreateRequestBody)
 	if err != nil {
-		fmt.Errorf("%v\n", err)
 		return err
 	}
-	fmt.Printf("body - %+v \n", string(body))
 
-	resp, err := httpclient.DoRequest(ctx, c.HTTPClient, http.MethodPost, url, body, c.authHeader())
-
-	b, err := ioutil.ReadAll(resp.Body)
-	fmt.Printf("spot node pool created response body : %s\n", string(b))
+	err = c.doRequest(ctx, http.MethodPost, url, body, c.authHeader(), nil)
 	if err != nil {
+		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
+			return fmt.Errorf("access denied: you do not have permission to create the spot node pool '%s'", pool.Name)
+		}
 		return err
 	}
-
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%s", resp.Status)
-	}
-	fmt.Printf("spot node pool created: %s\n", string(b))
 	return nil
 }
 
@@ -420,31 +400,96 @@ func (c *RackspaceSpotClient) GetSpotNodePool(ctx context.Context, namespace, cl
 }
 
 // ListOnDemandNodePools retrieves all on-demand node pools in a namespace.
-func (c *RackspaceSpotClient) ListOnDemandNodePools(ctx context.Context, namespace string) ([]OnDemandNodePool, error) {
-	// TODO: Implement API call to /api/namespaces/{namespace}/ondemandnodepools
-	return nil, nil
+func (c *RackspaceSpotClient) ListOnDemandNodePools(ctx context.Context, namespace string, cloudspaceName string) ([]*OnDemandNodePool, error) {
+	labelKey := "ngpc.rxt.io/cloudspace"
+	labelSelector := fmt.Sprintf("%s=%s", labelKey, cloudspaceName)
+	encodedSelector := url.QueryEscape(labelSelector)
+
+	url := fmt.Sprintf(
+		"%s/apis/ngpc.rxt.io/v1/namespaces/%s/ondemandnodepools?labelSelector=%s",
+		c.BaseURL, namespace, encodedSelector,
+	)
+
+	var pool SpotNodePoolListResponse
+	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &pool); err != nil {
+		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
+			return nil, fmt.Errorf("access denied: you do not have permission to list on-demand node pools in the namespace '%s'", namespace)
+		}
+		return nil, err
+	}
+
+	var finalList []*OnDemandNodePool
+	for _, item := range pool.Items {
+		finalList = append(finalList, &OnDemandNodePool{
+			Name:        item.Metadata.Name,
+			Org:         item.Metadata.Namespace,
+			Cloudspace:  item.Spec.CloudSpace,
+			ServerClass: item.Spec.ServerClass,
+			Desired:     item.Spec.Desired,
+		})
+	}
+	return finalList, nil
 }
 
 // CreateOnDemandNodePool creates a new on-demand node pool in the given namespace.
 func (c *RackspaceSpotClient) CreateOnDemandNodePool(ctx context.Context, pool OnDemandNodePool) error {
-	// 	url := fmt.Sprintf("%s/api/namespaces/%s/ondemandnodepools", c.BaseURL, pool.Namespace)
-	// 	body, err := json.Marshal(pool)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	resp, err := httpclient.DoRequest(ctx, c.HTTPClient, http.MethodPost, url, body, c.authHeader())
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	defer resp.Body.Close()
-	// 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-	// 		b, _ := ioutil.ReadAll(resp.Body)
-	// 		return nil, fmt.Errorf("failed to create on-demand node pool: %s", string(b))
-	// 	}
-	// 	var created OnDemandNodePool
-	// 	if err := json.NewDecoder(resp.Body).Decode(&created); err != nil {
-	// 		return nil, err
-	// 	}
+	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/ondemandnodepools", c.BaseURL, pool.Org)
+
+	ondemandNodePoolCreateRequestBody := OnDemandNodePoolRequestBody{
+		APIVersion: "ngpc.rxt.io/v1",
+		Kind:       "OnDemandNodePool",
+		Metadata: struct {
+			Name      string `json:"name"`
+			Namespace string `json:"namespace"`
+			Labels    struct {
+				NgpcRxtIoCloudspace string `json:"ngpc.rxt.io/cloudspace"`
+			} `json:"labels"`
+		}{
+			Name:      uuid.New().String(),
+			Namespace: pool.Org,
+			Labels: struct {
+				NgpcRxtIoCloudspace string `json:"ngpc.rxt.io/cloudspace"`
+			}{
+				NgpcRxtIoCloudspace: pool.Cloudspace,
+			},
+		},
+		Spec: struct {
+			ServerClass string `json:"serverClass"`
+			Desired     int    `json:"desired"`
+			CloudSpace  string `json:"cloudSpace"`
+			Autoscaling struct {
+				Enabled  bool `json:"enabled"`
+				MinNodes any  `json:"minNodes"`
+				MaxNodes any  `json:"maxNodes"`
+			} `json:"autoscaling"`
+		}{
+			ServerClass: pool.ServerClass,
+			Desired:     pool.Desired,
+			CloudSpace:  pool.Cloudspace,
+			Autoscaling: struct {
+				Enabled  bool `json:"enabled"`
+				MinNodes any  `json:"minNodes"`
+				MaxNodes any  `json:"maxNodes"`
+			}{
+				Enabled:  pool.Autoscaling.Enabled,
+				MinNodes: pool.Autoscaling.MinNodes,
+				MaxNodes: pool.Autoscaling.MaxNodes,
+			},
+		},
+	}
+
+	body, err := json.Marshal(ondemandNodePoolCreateRequestBody)
+	if err != nil {
+		return err
+	}
+
+	err = c.doRequest(ctx, http.MethodPost, url, body, c.authHeader(), nil)
+	if err != nil {
+		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
+			return fmt.Errorf("access denied: you do not have permission to create the ondemand node pool '%s'", pool.Name)
+		}
+		return err
+	}
 	return nil
 }
 
@@ -485,94 +530,186 @@ func (c *RackspaceSpotClient) GetOnDemandNodePool(ctx context.Context, namespace
 // ListRegions retrieves all available regions.
 func (c *RackspaceSpotClient) ListRegions(ctx context.Context) ([]Region, error) {
 	url := fmt.Sprintf("%s/api/regions", c.BaseURL)
-	resp, err := httpclient.DoRequest(ctx, c.HTTPClient, http.MethodGet, url, nil, c.authHeader())
-	if err != nil {
+	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), nil); err != nil {
 		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		b, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to list regions: %s", string(b))
 	}
 	var regions []Region
-	if err := json.NewDecoder(resp.Body).Decode(&regions); err != nil {
-		return nil, err
-	}
+	// if err := json.NewDecoder(resp.Body).Decode(&regions); err != nil {
+	// 	return nil, err
+	// }
 	return regions, nil
 }
 
 // GetRegion retrieves a region by name.
 func (c *RackspaceSpotClient) GetRegion(ctx context.Context, name string) (*Region, error) {
 	url := fmt.Sprintf("%s/api/regions/%s", c.BaseURL, name)
-	resp, err := httpclient.DoRequest(ctx, c.HTTPClient, http.MethodGet, url, nil, c.authHeader())
-	if err != nil {
+	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), nil); err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		b, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to get region: %s", string(b))
-	}
+	// defer resp.Body.Close()
+	// if resp.StatusCode != http.StatusOK {
+	// 	b, _ := ioutil.ReadAll(resp.Body)
+	// 	return nil, fmt.Errorf("failed to get region: %s", string(b))
+	// }
 	var region Region
-	if err := json.NewDecoder(resp.Body).Decode(&region); err != nil {
-		return nil, err
-	}
+	// if err := json.NewDecoder(resp.Body).Decode(&region); err != nil {
+	// 	return nil, err
+	// }
 	return &region, nil
 }
 
 // ListServerClasses retrieves all available server classes.
 func (c *RackspaceSpotClient) ListServerClasses(ctx context.Context) (*ServerClassList, error) {
 	url := fmt.Sprintf("%s/api/serverclasses", c.BaseURL)
-	resp, err := httpclient.DoRequest(ctx, c.HTTPClient, http.MethodGet, url, nil, c.authHeader())
-	if err != nil {
+	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), nil); err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		b, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to list server classes: %s", string(b))
-	}
+	// defer resp.Body.Close()
+	// if resp.StatusCode != http.StatusOK {
+	// 	b, _ := ioutil.ReadAll(resp.Body)
+	// 	return nil, fmt.Errorf("failed to list server classes: %s", string(b))
+	// }
 	var classes []ServerClass
-	if err := json.NewDecoder(resp.Body).Decode(&classes); err != nil {
-		return nil, err
-	}
+	// if err := json.NewDecoder(resp.Body).Decode(&classes); err != nil {
+	// 	return nil, err
 	return &ServerClassList{Items: classes}, nil
 }
 
 // GetServerClass retrieves a server class by name.
 func (c *RackspaceSpotClient) GetServerClass(ctx context.Context, name string) (*ServerClass, error) {
 	url := fmt.Sprintf("%s/api/serverclasses/%s", c.BaseURL, name)
-	resp, err := httpclient.DoRequest(ctx, c.HTTPClient, http.MethodGet, url, nil, c.authHeader())
-	if err != nil {
+	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), nil); err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		b, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to get server class: %s", string(b))
-	}
+	// defer resp.Body.Close()
+	// if resp.StatusCode != http.StatusOK {
+	// 	b, _ := ioutil.ReadAll(resp.Body)
+	// 	return nil, fmt.Errorf("failed to get server class: %s", string(b))
+	// }
 	var class ServerClass
-	if err := json.NewDecoder(resp.Body).Decode(&class); err != nil {
-		return nil, err
-	}
+	// if err := json.NewDecoder(resp.Body).Decode(&class); err != nil {
+	// 	return nil, err
+	//}
 	return &class, nil
 }
 
 // GetPriceHistory retrieves the price history for a server class.
 func (c *RackspaceSpotClient) GetPriceHistory(ctx context.Context, serverClass string) (*PriceHistory, error) {
 	url := fmt.Sprintf("%s/api/serverclasses/%s/pricehistory", c.BaseURL, serverClass)
-	resp, err := httpclient.DoRequest(ctx, c.HTTPClient, http.MethodGet, url, nil, c.authHeader())
-	if err != nil {
+	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), nil); err != nil {
 		return nil, err
+	}
+	// defer resp.Body.Close()
+	// if resp.StatusCode != http.StatusOK {
+	// 	b, _ := ioutil.ReadAll(resp.Body)
+	// 	return nil, fmt.Errorf("failed to get price history: %s", string(b))
+	// }
+	var history PriceHistory
+	// if err := json.NewDecoder(resp.Body).Decode(&history); err != nil {
+	// 	return nil, err
+	//}
+	return &history, nil
+}
+
+type HTTPStatusError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *HTTPStatusError) Error() string {
+	return fmt.Sprintf("HTTP %d: %s", e.StatusCode, e.Body)
+}
+
+// Helper matchers for consumers (like your CLI)
+func IsNotFound(err error) bool {
+	var e *HTTPStatusError
+	if errors.As(err, &e) {
+		return e.StatusCode == http.StatusNotFound
+	}
+	return false
+}
+
+func IsForbidden(err error) bool {
+	var e *HTTPStatusError
+	if errors.As(err, &e) {
+		return e.StatusCode == http.StatusForbidden
+	}
+	return false
+}
+
+func IsConflict(err error) bool {
+	var e *HTTPStatusError
+	if errors.As(err, &e) {
+		return e.StatusCode == http.StatusConflict
+	}
+	return false
+}
+
+func (c *RackspaceSpotClient) doRequest(ctx context.Context, method, url string, body []byte, headers map[string]string, out interface{}) error {
+	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
+	if err != nil {
+		klog.Errorf("doRequest: failed to create request: %v", err)
+		return err
+	}
+
+	// Add headers
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+
+	// ----- Request logging -----
+	klog.V(1).Infof("[%s] %s", method, url)
+	if len(headers) > 0 {
+		klog.V(2).Infof("Request headers: %+v", headers)
+	}
+	if len(body) > 0 {
+		fmt.Printf("Request body: %s\n", string(body))
+		klog.V(3).Infof("Request body: %s", string(body))
+	}
+
+	// ----- Perform HTTP request -----
+	start := time.Now()
+	resp, err := c.HTTPClient.Do(req)
+	duration := time.Since(start)
+	if err != nil {
+		klog.Errorf("HTTP request failed after %v: %v", duration, err)
+		return err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		b, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to get price history: %s", string(b))
+
+	klog.V(2).Infof("Response status: %d %s (duration: %v)", resp.StatusCode, http.StatusText(resp.StatusCode), duration)
+
+	// if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	// 	b, _ := io.ReadAll(resp.Body)
+	// 	if klog.V(2).Enabled() {
+	// 		klog.Infof("Non-OK response (%d): %s", resp.StatusCode, string(b))
+	// 	}
+	// 	return &HTTPStatusError{StatusCode: resp.StatusCode, Body: string(b)}
+	// }
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		b, _ := io.ReadAll(resp.Body)
+		return &HTTPStatusError{StatusCode: resp.StatusCode, Body: string(b)}
 	}
-	var history PriceHistory
-	if err := json.NewDecoder(resp.Body).Decode(&history); err != nil {
-		return nil, err
+
+	// ----- Response logging -----
+	if klog.V(3).Enabled() {
+		klog.V(3).Infof("Response headers: %+v", resp.Header)
 	}
-	return &history, nil
+	if klog.V(4).Enabled() {
+		respBody, _ := io.ReadAll(resp.Body)
+		resp.Body = io.NopCloser(bytes.NewReader(respBody))
+		klog.V(4).Infof("Response body: %s", string(respBody))
+	}
+
+	// ----- Decode if out != nil -----
+	if out != nil {
+		dec := json.NewDecoder(resp.Body)
+		if err := dec.Decode(out); err != nil && err != io.EOF {
+			klog.Errorf("Failed to decode JSON: %v", err)
+			return fmt.Errorf("decode json: %w", err)
+		}
+		klog.V(4).Infof("Decoded object: %+v", out)
+	}
+
+	return nil
 }

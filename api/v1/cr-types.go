@@ -180,3 +180,25 @@ type SpotNodePoolListResponse struct {
 		ResourceVersion string `json:"resourceVersion"`
 	} `json:"metadata"`
 }
+
+type OnDemandNodePoolRequestBody struct {
+	APIVersion string `json:"apiVersion"`
+	Kind       string `json:"kind"`
+	Metadata   struct {
+		Name      string `json:"name"`
+		Namespace string `json:"namespace"`
+		Labels    struct {
+			NgpcRxtIoCloudspace string `json:"ngpc.rxt.io/cloudspace"`
+		} `json:"labels"`
+	} `json:"metadata"`
+	Spec struct {
+		ServerClass string `json:"serverClass"`
+		Desired     int    `json:"desired"`
+		CloudSpace  string `json:"cloudSpace"`
+		Autoscaling struct {
+			Enabled  bool `json:"enabled"`
+			MinNodes any  `json:"minNodes"`
+			MaxNodes any  `json:"maxNodes"`
+		} `json:"autoscaling"`
+	} `json:"spec"`
+}

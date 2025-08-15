@@ -25,7 +25,7 @@ type SpotNodePoolAPI interface {
 
 // OnDemandNodePoolAPI defines on-demand node pool methods.
 type OnDemandNodePoolAPI interface {
-	ListOnDemandNodePools(ctx context.Context, namespace string) ([]OnDemandNodePool, error)
+	ListOnDemandNodePools(ctx context.Context, namespace string, cloudspace string) ([]*OnDemandNodePool, error)
 	CreateOnDemandNodePool(ctx context.Context, pool OnDemandNodePool) error
 	GetOnDemandNodePool(ctx context.Context, namespace, name string) (*OnDemandNodePool, error)
 	DeleteOnDemandNodePool(ctx context.Context, namespace, name string) error
