@@ -141,6 +141,14 @@ type SpotNodePoolCreateRequestBody struct {
 	} `json:"spec"`
 }
 
+type KubeConfigResponse struct {
+	Data struct {
+		Kubeconfig string `json:"kubeconfig"`
+	} `json:"data"`
+	Message    string `json:"message"`
+	StatusCode int    `json:"status_code"`
+}
+
 type SpotNodePoolListResponse struct {
 	APIVersion string `json:"apiVersion"`
 	Items      []struct {
@@ -181,7 +189,7 @@ type SpotNodePoolListResponse struct {
 	} `json:"metadata"`
 }
 
-type OnDemandNodePoolRequestBody struct {
+type OnDemandNodePoolCreateRequestBody struct {
 	APIVersion string `json:"apiVersion"`
 	Kind       string `json:"kind"`
 	Metadata   struct {

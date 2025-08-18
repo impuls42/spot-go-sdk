@@ -8,7 +8,7 @@ type CloudSpaceList struct {
 
 type CloudSpace struct {
 	Name              string    `json:"name"`
-	OrgID             string    `json:"orgID"`
+	Org               string    `json:"org"`
 	CreationTimestamp time.Time `json:"creationTimestamp"`
 	//Cloud             string                    `json:"cloud,omitempty"`
 	Cni               string `json:"cni,omitempty"`
@@ -18,7 +18,7 @@ type CloudSpace struct {
 	Region            string `json:"region,omitempty"`
 	//Type              string                    `json:"type,omitempty"`
 	PreemptionWebhookURL string                    `json:"preemptionWebhookURL,omitempty"`
-	APIServerEndpoint    string                    `json:"APIServerEndpoint,omitempty"`
+	APIServerEndpoint    string                    `json:"apiserverEndpoint,omitempty"`
 	AssignedServers      map[string]AssignedServer `json:"assignedServers,omitempty"`
 	SpotNodepools        []*SpotNodePool           `json:"spotNodepools,omitempty"`
 	OnDemandNodePools    []*OnDemandNodePool       `json:"ondemandnodepools,omitempty"`

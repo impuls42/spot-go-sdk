@@ -100,37 +100,80 @@ func (c *RackspaceSpotClient) ListOrganizations(ctx context.Context) ([]Organiza
 	}
 
 	// Pass &response to doRequest so it decodes automatically
-	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &response); err != nil {
-		// Specific 403 handling if doRequest returns your custom HTTPStatusError
-		if strings.Contains(err.Error(), "403 Forbidden") {
+	err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &response)
+	if err != nil {
+		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
 			return nil, fmt.Errorf("access denied: you do not have permission to list organizations")
 		}
 		return nil, err
 	}
-
 	return response.Organizations, nil
 }
 
-// ListCloudspaces retrieves all cloudspaces in a namespace.
+func (c *RackspaceSpotClient) getOrgIDIfExists(ctx context.Context, orgName string) (bool, string, error) {
+	url := fmt.Sprintf("%s/apis/auth.ngpc.rxt.io/v1/organizations", c.BaseURL) // Correct URL
 
-func (c *RackspaceSpotClient) ListCloudspaces(ctx context.Context, namespace string) (*CloudSpaceList, error) {
-	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/cloudspaces", c.BaseURL, url.PathEscape(namespace))
+	// Structure for decoding
+	var response struct {
+		Organizations []Organization `json:"organizations"`
+	}
+
+	// Pass &response to doRequest so it decodes automatically
+	err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &response)
+	if err != nil {
+		// Specific 403 handling if doRequest returns your custom HTTPStatusError
+		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
+			return false, "", fmt.Errorf("access denied: you do not have permission to list organizations")
+		}
+		return false, "", err
+	}
+
+	for _, org := range response.Organizations {
+		if org.Name == orgName {
+			org.ID = strings.ReplaceAll(org.ID, "_", "-")
+			org.ID = strings.ToLower(org.ID)
+			return true, org.ID, nil
+		}
+	}
+	return false, "", nil
+}
+
+// ListCloudspaces retrieves all cloudspaces in a namespace.
+func (c *RackspaceSpotClient) ListCloudspaces(ctx context.Context, org string) (*CloudSpaceList, error) {
+	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, fmt.Errorf("organization '%s' not found", org)
+	}
+	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/cloudspaces", c.BaseURL, orgID)
 
 	// Pass &interm to be populated by doRequest JSON decoding
 	var interm cloudSpaceListResponse
-	err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &interm)
+	err = c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &interm)
 	if err != nil {
-		if strings.Contains(err.Error(), "403 Forbidden") { // You could even make this custom
-			return nil, fmt.Errorf("access denied: you do not have permission to list cloudspaces in the organization '%s'", namespace)
+		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
+			return nil, fmt.Errorf("access denied: you do not have permission to list cloudspaces in the organization '%s'", org)
 		}
 		return nil, err
 	}
-
 	var finalList CloudSpaceList
 	for _, cs := range interm.Items {
+		// Spot node pools
+		spotNodePools, err := c.ListSpotNodePools(ctx, org, cs.Metadata.Name)
+		if err != nil {
+			return nil, err
+		}
+
+		// OnDemand node pools
+		onDemandNodePools, err := c.ListOnDemandNodePools(ctx, org, cs.Metadata.Name)
+		if err != nil {
+			return nil, err
+		}
 		finalList.Items = append(finalList.Items, CloudSpace{
 			Name:                 cs.Metadata.Name,
-			OrgID:                cs.Metadata.Namespace,
+			Org:                  org,
 			CreationTimestamp:    cs.Metadata.CreationTimestamp,
 			Cni:                  cs.Spec.Cni,
 			DeploymentType:       cs.Spec.DeploymentType,
@@ -140,6 +183,8 @@ func (c *RackspaceSpotClient) ListCloudspaces(ctx context.Context, namespace str
 			PreemptionWebhookURL: cs.Spec.Webhook,
 			APIServerEndpoint:    cs.Status.APIServerEndpoint,
 			AssignedServers:      cs.Status.AssignedServers,
+			SpotNodepools:        spotNodePools,
+			OnDemandNodePools:    onDemandNodePools,
 			Health:               cs.Status.Health,
 		})
 	}
@@ -148,7 +193,14 @@ func (c *RackspaceSpotClient) ListCloudspaces(ctx context.Context, namespace str
 
 // CreateCloudspace creates a new cloudspace in the given namespace.
 func (c *RackspaceSpotClient) CreateCloudspace(ctx context.Context, cs CloudSpace) error {
-	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/cloudspaces", c.BaseURL, cs.OrgID)
+	exists, orgID, err := c.getOrgIDIfExists(ctx, cs.Org)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("organization '%s' not found", cs.Org)
+	}
+
 	cloudspaceCreateRequestBody := CloudSpaceCreateRequestBody{
 		APIVersion: "ngpc.rxt.io/v1",
 		Kind:       "CloudSpace",
@@ -159,7 +211,7 @@ func (c *RackspaceSpotClient) CreateCloudspace(ctx context.Context, cs CloudSpac
 			} `json:"annotations"`
 		}{
 			Name:      cs.Name,
-			Namespace: cs.OrgID,
+			Namespace: orgID,
 			Annotations: struct {
 			}{},
 		},
@@ -188,6 +240,8 @@ func (c *RackspaceSpotClient) CreateCloudspace(ctx context.Context, cs CloudSpac
 	if err != nil {
 		return err
 	}
+	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/cloudspaces", c.BaseURL, orgID)
+
 	if err := c.doRequest(ctx, http.MethodPost, url, body, c.authHeader(), nil); err != nil {
 		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
 			return fmt.Errorf("access denied: you do not have permission to create the cloudspace '%s'", cs.Name)
@@ -198,9 +252,16 @@ func (c *RackspaceSpotClient) CreateCloudspace(ctx context.Context, cs CloudSpac
 }
 
 // DeleteCloudspace deletes a cloudspace by name in the given namespace.
-func (c *RackspaceSpotClient) DeleteCloudspace(ctx context.Context, namespace, name string) error {
-	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/cloudspaces/%s", c.BaseURL, namespace, name)
-	err := c.doRequest(ctx, http.MethodDelete, url, nil, c.authHeader(), nil)
+func (c *RackspaceSpotClient) DeleteCloudspace(ctx context.Context, org, name string) error {
+	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("organization '%s' not found", org)
+	}
+	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/cloudspaces/%s", c.BaseURL, orgID, name)
+	err = c.doRequest(ctx, http.MethodDelete, url, nil, c.authHeader(), nil)
 	if err != nil {
 		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
 			return fmt.Errorf("access denied: you do not have permission to delete the cloudspace '%s'", name)
@@ -215,14 +276,20 @@ func (c *RackspaceSpotClient) DeleteCloudspace(ctx context.Context, namespace, n
 }
 
 // GetCloudspace retrieves a cloudspace by name in the given namespace.
-func (c *RackspaceSpotClient) GetCloudspace(ctx context.Context, namespace, name string) (*CloudSpace, error) {
-	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/cloudspaces/%s",
-		c.BaseURL, url.PathEscape(namespace), url.PathEscape(name))
-
+func (c *RackspaceSpotClient) GetCloudspace(ctx context.Context, org, name string) (*CloudSpace, error) {
+	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, fmt.Errorf("organization '%s' not found", org)
+	}
+	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/cloudspaces/%s", c.BaseURL, orgID, name)
+	fmt.Printf("url -----: %s\n", url)
 	var interm cloudSpaceGetResponse
 
 	// Pass &interm so doRequest will JSON unmarshal into it
-	err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &interm)
+	err = c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &interm)
 	if err != nil {
 		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
 			return nil, fmt.Errorf("access denied: you do not have permission to get the cloudspace '%s'", name)
@@ -231,20 +298,20 @@ func (c *RackspaceSpotClient) GetCloudspace(ctx context.Context, namespace, name
 	}
 
 	// Spot node pools
-	spotNodePools, err := c.ListSpotNodePools(ctx, namespace, interm.Metadata.Name)
+	spotNodePools, err := c.ListSpotNodePools(ctx, org, interm.Metadata.Name)
 	if err != nil {
 		return nil, err
 	}
 
 	// OnDemand node pools
-	onDemandNodePools, err := c.ListOnDemandNodePools(ctx, namespace, interm.Metadata.Name)
+	onDemandNodePools, err := c.ListOnDemandNodePools(ctx, org, interm.Metadata.Name)
 	if err != nil {
 		return nil, err
 	}
 
 	finalList := CloudSpace{
 		Name:                 interm.Metadata.Name,
-		OrgID:                interm.Metadata.Namespace,
+		Org:                  org,
 		CreationTimestamp:    interm.Metadata.CreationTimestamp,
 		Cni:                  interm.Spec.Cni,
 		DeploymentType:       interm.Spec.DeploymentType,
@@ -263,20 +330,29 @@ func (c *RackspaceSpotClient) GetCloudspace(ctx context.Context, namespace, name
 }
 
 // ListSpotNodePools retrieves all spot node pools in a namespace.
-func (c *RackspaceSpotClient) ListSpotNodePools(ctx context.Context, namespace, cloudspaceName string) ([]*SpotNodePool, error) {
+func (c *RackspaceSpotClient) ListSpotNodePools(ctx context.Context, org, cloudspaceName string) ([]*SpotNodePool, error) {
+
+	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, fmt.Errorf("organization '%s' not found", org)
+	}
+
 	labelKey := "ngpc.rxt.io/cloudspace"
 	labelSelector := fmt.Sprintf("%s=%s", labelKey, cloudspaceName)
 	encodedSelector := url.QueryEscape(labelSelector)
 
 	url := fmt.Sprintf(
 		"%s/apis/ngpc.rxt.io/v1/namespaces/%s/spotnodepools?labelSelector=%s",
-		c.BaseURL, namespace, encodedSelector,
+		c.BaseURL, orgID, encodedSelector,
 	)
 
 	var pool SpotNodePoolListResponse
 	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &pool); err != nil {
 		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
-			return nil, fmt.Errorf("access denied: you do not have permission to list spot node pools in the namespace '%s'", namespace)
+			return nil, fmt.Errorf("access denied: you do not have permission to list spot node pools in the namespace '%s'", org)
 		}
 		return nil, err
 	}
@@ -285,7 +361,7 @@ func (c *RackspaceSpotClient) ListSpotNodePools(ctx context.Context, namespace, 
 	for _, item := range pool.Items {
 		finalList = append(finalList, &SpotNodePool{
 			Name:        item.Metadata.Name,
-			Org:         item.Metadata.Namespace,
+			Org:         org,
 			Cloudspace:  item.Spec.CloudSpace,
 			ServerClass: item.Spec.ServerClass,
 			Desired:     item.Spec.Desired,
@@ -296,8 +372,15 @@ func (c *RackspaceSpotClient) ListSpotNodePools(ctx context.Context, namespace, 
 }
 
 // CreateSpotNodePool creates a new spot node pool in the given namespace.
-func (c *RackspaceSpotClient) CreateSpotNodePool(ctx context.Context, pool SpotNodePool) error {
-	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/spotnodepools", c.BaseURL, pool.Org)
+func (c *RackspaceSpotClient) CreateSpotNodePool(ctx context.Context, org string, pool SpotNodePool) error {
+	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("organization '%s' not found", org)
+	}
+	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/spotnodepools", c.BaseURL, orgID)
 
 	spotNodePoolCreateRequestBody := SpotNodePoolCreateRequestBody{
 		APIVersion: "ngpc.rxt.io/v1",
@@ -310,7 +393,7 @@ func (c *RackspaceSpotClient) CreateSpotNodePool(ctx context.Context, pool SpotN
 			} `json:"labels"`
 		}{
 			Name:      uuid.New().String(),
-			Namespace: pool.Org,
+			Namespace: orgID,
 			Labels: struct {
 				NgpcRxtIoCloudspace string `json:"ngpc.rxt.io/cloudspace"`
 			}{
@@ -360,7 +443,7 @@ func (c *RackspaceSpotClient) CreateSpotNodePool(ctx context.Context, pool SpotN
 }
 
 // DeleteSpotNodePool deletes a spot node pool by name in the given namespace.
-func (c *RackspaceSpotClient) DeleteSpotNodePool(ctx context.Context, namespace, name string) error {
+func (c *RackspaceSpotClient) DeleteSpotNodePool(ctx context.Context, org, name string) error {
 	// 	url := fmt.Sprintf("%s/api/namespaces/%s/spotnodepools/%s", c.BaseURL, namespace, name)
 	// 	resp, err := httpclient.DoRequest(ctx, c.HTTPClient, http.MethodDelete, url, nil, c.authHeader())
 	// 	if err != nil {
@@ -400,20 +483,29 @@ func (c *RackspaceSpotClient) GetSpotNodePool(ctx context.Context, namespace, cl
 }
 
 // ListOnDemandNodePools retrieves all on-demand node pools in a namespace.
-func (c *RackspaceSpotClient) ListOnDemandNodePools(ctx context.Context, namespace string, cloudspaceName string) ([]*OnDemandNodePool, error) {
+func (c *RackspaceSpotClient) ListOnDemandNodePools(ctx context.Context, org, cloudspaceName string) ([]*OnDemandNodePool, error) {
+
+	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, fmt.Errorf("organization '%s' not found", org)
+	}
+
 	labelKey := "ngpc.rxt.io/cloudspace"
 	labelSelector := fmt.Sprintf("%s=%s", labelKey, cloudspaceName)
 	encodedSelector := url.QueryEscape(labelSelector)
 
 	url := fmt.Sprintf(
 		"%s/apis/ngpc.rxt.io/v1/namespaces/%s/ondemandnodepools?labelSelector=%s",
-		c.BaseURL, namespace, encodedSelector,
+		c.BaseURL, orgID, encodedSelector,
 	)
 
 	var pool SpotNodePoolListResponse
 	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &pool); err != nil {
 		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
-			return nil, fmt.Errorf("access denied: you do not have permission to list on-demand node pools in the namespace '%s'", namespace)
+			return nil, fmt.Errorf("access denied: you do not have permission to list on-demand node pools in the namespace '%s'", org)
 		}
 		return nil, err
 	}
@@ -422,7 +514,7 @@ func (c *RackspaceSpotClient) ListOnDemandNodePools(ctx context.Context, namespa
 	for _, item := range pool.Items {
 		finalList = append(finalList, &OnDemandNodePool{
 			Name:        item.Metadata.Name,
-			Org:         item.Metadata.Namespace,
+			Org:         org,
 			Cloudspace:  item.Spec.CloudSpace,
 			ServerClass: item.Spec.ServerClass,
 			Desired:     item.Spec.Desired,
@@ -432,10 +524,19 @@ func (c *RackspaceSpotClient) ListOnDemandNodePools(ctx context.Context, namespa
 }
 
 // CreateOnDemandNodePool creates a new on-demand node pool in the given namespace.
-func (c *RackspaceSpotClient) CreateOnDemandNodePool(ctx context.Context, pool OnDemandNodePool) error {
-	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/ondemandnodepools", c.BaseURL, pool.Org)
+func (c *RackspaceSpotClient) CreateOnDemandNodePool(ctx context.Context, org string, pool OnDemandNodePool) error {
 
-	ondemandNodePoolCreateRequestBody := OnDemandNodePoolRequestBody{
+	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("organization '%s' not found", org)
+	}
+
+	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/ondemandnodepools", c.BaseURL, orgID)
+
+	ondemandNodePoolCreateRequestBody := OnDemandNodePoolCreateRequestBody{
 		APIVersion: "ngpc.rxt.io/v1",
 		Kind:       "OnDemandNodePool",
 		Metadata: struct {
@@ -446,7 +547,7 @@ func (c *RackspaceSpotClient) CreateOnDemandNodePool(ctx context.Context, pool O
 			} `json:"labels"`
 		}{
 			Name:      uuid.New().String(),
-			Namespace: pool.Org,
+			Namespace: orgID,
 			Labels: struct {
 				NgpcRxtIoCloudspace string `json:"ngpc.rxt.io/cloudspace"`
 			}{
@@ -525,6 +626,31 @@ func (c *RackspaceSpotClient) GetOnDemandNodePool(ctx context.Context, namespace
 	// 		return nil, err
 	// 	}
 	return nil, nil
+}
+
+func (c *RackspaceSpotClient) GetCloudspaceConfig(ctx context.Context, namespace, name string) (string, error) {
+	url := fmt.Sprintf("%s/apis/auth.ngpc.rxt.io/v1/generate-kubeconfig", c.BaseURL)
+	reqBody := struct {
+		OrganizationName string `json:"organization_name"`
+		CloudspaceName   string `json:"cloudspace_name"`
+		RefreshToken     string `json:"refresh_token"`
+	}{
+		OrganizationName: namespace,
+		CloudspaceName:   name,
+		RefreshToken:     c.RefreshToken, // actual token
+	}
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", err
+	}
+	var kubeConfigResponse KubeConfigResponse
+	if err := c.doRequest(ctx, http.MethodPost, url, jsonBody, c.authHeader(), &kubeConfigResponse); err != nil {
+		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
+			return "", fmt.Errorf("access denied: you do not have permission to get the kubeconfig for - '%s'", name)
+		}
+		return "", err
+	}
+	return kubeConfigResponse.Data.Kubeconfig, nil
 }
 
 // ListRegions retrieves all available regions.
@@ -663,12 +789,14 @@ func (c *RackspaceSpotClient) doRequest(ctx context.Context, method, url string,
 		klog.V(2).Infof("Request headers: %+v", headers)
 	}
 	if len(body) > 0 {
-		fmt.Printf("Request body: %s\n", string(body))
 		klog.V(3).Infof("Request body: %s", string(body))
 	}
 
 	// ----- Perform HTTP request -----
 	start := time.Now()
+
+	fmt.Printf("url - %v\n", url)
+	fmt.Printf("request body - %v\n", string(body))
 	resp, err := c.HTTPClient.Do(req)
 	duration := time.Since(start)
 	if err != nil {
@@ -679,13 +807,6 @@ func (c *RackspaceSpotClient) doRequest(ctx context.Context, method, url string,
 
 	klog.V(2).Infof("Response status: %d %s (duration: %v)", resp.StatusCode, http.StatusText(resp.StatusCode), duration)
 
-	// if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-	// 	b, _ := io.ReadAll(resp.Body)
-	// 	if klog.V(2).Enabled() {
-	// 		klog.Infof("Non-OK response (%d): %s", resp.StatusCode, string(b))
-	// 	}
-	// 	return &HTTPStatusError{StatusCode: resp.StatusCode, Body: string(b)}
-	// }
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		b, _ := io.ReadAll(resp.Body)
 		return &HTTPStatusError{StatusCode: resp.StatusCode, Body: string(b)}
@@ -708,7 +829,7 @@ func (c *RackspaceSpotClient) doRequest(ctx context.Context, method, url string,
 			klog.Errorf("Failed to decode JSON: %v", err)
 			return fmt.Errorf("decode json: %w", err)
 		}
-		klog.V(4).Infof("Decoded object: %+v", out)
+		klog.V(4).Infof("Decoded object ****: %+v", out)
 	}
 
 	return nil
