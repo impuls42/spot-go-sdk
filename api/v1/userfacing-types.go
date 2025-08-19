@@ -7,22 +7,20 @@ type CloudSpaceList struct {
 }
 
 type CloudSpace struct {
-	Name              string    `json:"name"`
-	Org               string    `json:"org"`
-	CreationTimestamp time.Time `json:"creationTimestamp"`
-	//Cloud             string                    `json:"cloud,omitempty"`
-	Cni               string `json:"cni,omitempty"`
-	DeploymentType    string `json:"deploymentType,omitempty"`
-	GpuEnabled        bool   `json:"gpuEnabled,omitempty"`
-	KubernetesVersion string `json:"kubernetesVersion,omitempty"`
-	Region            string `json:"region,omitempty"`
-	//Type              string                    `json:"type,omitempty"`
+	Name                 string                    `json:"name"`
+	Org                  string                    `json:"org"`
+	CreationTimestamp    time.Time                 `json:"creationTimestamp,omitempty"`
+	Cni                  string                    `json:"cni,omitempty"`
+	DeploymentType       string                    `json:"deploymentType,omitempty"`
+	GpuEnabled           bool                      `json:"gpuEnabled,omitempty"`
+	KubernetesVersion    string                    `json:"kubernetesVersion,omitempty"`
+	Region               string                    `json:"region,omitempty"`
 	PreemptionWebhookURL string                    `json:"preemptionWebhookURL,omitempty"`
 	APIServerEndpoint    string                    `json:"apiserverEndpoint,omitempty"`
 	AssignedServers      map[string]AssignedServer `json:"assignedServers,omitempty"`
 	SpotNodepools        []*SpotNodePool           `json:"spotNodepools,omitempty"`
 	OnDemandNodePools    []*OnDemandNodePool       `json:"ondemandnodepools,omitempty"`
-	Health               string                    `json:"health,omitempty"`
+	Health               string                    `json:"status,omitempty"`
 }
 
 type AssignedServer struct {
@@ -96,16 +94,27 @@ type ServerClassList struct {
 }
 
 type ServerClass struct {
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
+	Name                      string   `json:"name"`
+	Category                  string   `json:"category,omitempty"`
+	Displayname               string   `json:"displayname,omitempty"`
+	Region                    string   `json:"region,omitempty"`
+	MinBidPricePerHour        string   `json:"min_bid_price_per_hour,omitempty"`
+	CurrentMarketPricePerHour string   `json:"current_market_price_per_hour,omitempty"`
+	Resources                 Resource `json:"resources,omitempty"`
 }
 
-type PriceHistory struct {
-	History []PriceEntry `json:"history"`
+type Resource struct {
+	CPU    string `json:"cpu"`
+	Memory string `json:"memory"`
+	GPU    string `json:"gpu,omitempty"`
 }
 
-// PriceEntry represents a single price point in the price history.
-type PriceEntry struct {
-	Timestamp string  `json:"timestamp"`
-	Price     float64 `json:"price"`
+type PriceDetails struct {
+	ServerClassName string `json:"serverclassname"`
+	DisplayName     string `json:"display_name"`
+	Category        string `json:"category"`
+	Region          string `json:"region"`
+	MarketPrice     string `json:"current_market_price"`
+	CPU             string `json:"cpu"`
+	Memory          string `json:"memory"`
 }

@@ -32,13 +32,21 @@ type OnDemandNodePoolAPI interface {
 	DeleteOnDemandNodePool(ctx context.Context, org, name string) error
 }
 
-// UtilityAPI defines utility methods for regions, server classes, price history, etc.
-type UtilityAPI interface {
+type SpotRegionsAPI interface {
 	ListRegions(ctx context.Context) ([]Region, error)
 	GetRegion(ctx context.Context, name string) (*Region, error)
-	ListServerClasses(ctx context.Context) (*ServerClassList, error)
+}
+
+type SpotServerClassesAPI interface {
+	ListServerClasses(ctx context.Context, region string) (*ServerClassList, error)
 	GetServerClass(ctx context.Context, name string) (*ServerClass, error)
-	GetPriceHistory(ctx context.Context, serverClass string) (*PriceHistory, error)
+}
+
+type SpotPricingAPI interface {
+	GetPriceDetailsForServerClass(ctx context.Context, serverClass string) (*PriceDetails, error)
+	GetPriceDetails(ctx context.Context) ([]*PriceDetails, error)
+	GetPriceDetailsForRegion(ctx context.Context, region string) (*PriceDetails, error)
+	GetMarketPriceForServerClass(ctx context.Context, serverClass string) (string, error)
 }
 
 // SpotAPI defines the complete interface for the Rackspace Spot SDK client.
@@ -49,5 +57,7 @@ type SpotAPI interface {
 	CloudspaceAPI
 	SpotNodePoolAPI
 	OnDemandNodePoolAPI
-	UtilityAPI
+	SpotRegionsAPI
+	SpotServerClassesAPI
+	SpotPricingAPI
 }
