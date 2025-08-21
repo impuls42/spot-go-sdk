@@ -125,3 +125,8 @@ func (c *RackspaceSpotClient) GetMarketPriceForServerClass(ctx context.Context, 
 	}
 	return "", fmt.Errorf("server class '%s' not found", serverClass)
 }
+
+func (c *RackspaceSpotClient) GetMinimumBidPriceForServerClass(ctx context.Context, serverClass string) (string, error) {
+	ServerClassDetails, _ := c.GetServerClass(ctx, serverClass)
+	return ServerClassDetails.MinBidPricePerHour, nil
+}

@@ -2,16 +2,57 @@ package rxtspot
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
-// Authenticate exchanges the refresh token for an access token.
-func (c *RackspaceSpotClient) Authenticate(ctx context.Context) error {
+// JWTClaims represents the standard JWT claims we care about
+type JWTClaims struct {
+	Exp int64 `json:"exp"` // Expiration time (Unix timestamp)
+}
+
+// isTokenExpired checks if a JWT token is expired
+func isTokenExpired(tokenString string) bool {
+	if tokenString == "" {
+		return true
+	}
+
+	// Split the token into parts (header.payload.signature)
+	parts := strings.Split(tokenString, ".")
+	if len(parts) != 3 {
+		return true // Invalid token format, consider it expired
+	}
+
+	// Decode the payload (second part)
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return true // Invalid base64, consider it expired
+	}
+
+	// Parse the claims
+	var claims JWTClaims
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return true // Invalid claims, consider it expired
+	}
+
+	// Check if token is expired (with 60 second leeway for clock skew)
+	now := time.Now().Unix()
+	return claims.Exp < now-60
+}
+
+// Authenticate gets a new access token if the current one is missing or expired
+func (c *RackspaceSpotClient) Authenticate(ctx context.Context) (string, error) {
+	// If we have a token and it's not expired, use it
+	if c.AccessToken != "" && !isTokenExpired(c.AccessToken) {
+		return c.AccessToken, nil
+	}
+	// No valid token, get a new one
 	form := url.Values{}
 	form.Set("grant_type", "refresh_token")
 	form.Set("client_id", "mwG3lUMV8KyeMqHe4fJ5Bb3nM1vBvRNa")
@@ -19,30 +60,31 @@ func (c *RackspaceSpotClient) Authenticate(ctx context.Context) error {
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.OAuthURL+"/oauth/token", strings.NewReader(form.Encode()))
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("request failed: %w", err)
+		return "", fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("authentication failed: %s", resp.Status)
+		return "", fmt.Errorf("authentication failed: %s", resp.Status)
 	}
 
 	var tokenResp struct {
 		IDToken string `json:"id_token"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
-		return fmt.Errorf("failed to decode response: %w", err)
+		return "", fmt.Errorf("failed to decode response: %w", err)
 	}
 	if tokenResp.IDToken == "" {
-		return errors.New("no id_token in authentication response")
+		return "", errors.New("no id_token in authentication response")
 	}
+
 	c.AccessToken = tokenResp.IDToken
-	return nil
+	return tokenResp.IDToken, nil
 }
 
 // authHeader returns the Authorization header for the current access token.

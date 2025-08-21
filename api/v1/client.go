@@ -19,6 +19,7 @@ type Config struct {
 	OAuthURL     string
 	HTTPClient   *http.Client
 	RefreshToken string
+	AccessToken  string
 	Timeout      time.Duration
 	LogLevel     int
 }
@@ -39,12 +40,13 @@ type HTTPStatusError struct {
 }
 
 // NewClient creates a new RackspaceSpotClient with the given configuration.
-func NewClient(cfg Config) *RackspaceSpotClient {
+func NewSpotClient(cfg Config) *RackspaceSpotClient {
 	return &RackspaceSpotClient{
 		BaseURL:      cfg.BaseURL,
 		OAuthURL:     cfg.OAuthURL,
 		HTTPClient:   cfg.HTTPClient,
 		RefreshToken: cfg.RefreshToken,
+		AccessToken:  cfg.AccessToken,
 		Timeout:      cfg.Timeout,
 	}
 }
@@ -76,9 +78,6 @@ func (c *RackspaceSpotClient) doRequest(ctx context.Context, method, url string,
 
 	// ----- Perform HTTP request -----
 	start := time.Now()
-
-	//fmt.Printf("url - %v\n", url)
-	//fmt.Printf("request body - %v\n", string(body))
 	resp, err := c.HTTPClient.Do(req)
 	duration := time.Since(start)
 	if err != nil {
@@ -111,7 +110,7 @@ func (c *RackspaceSpotClient) doRequest(ctx context.Context, method, url string,
 			klog.Errorf("Failed to decode JSON: %v", err)
 			return fmt.Errorf("decode json: %w", err)
 		}
-		klog.V(4).Infof("Decoded object ****: %+v", out)
+		klog.V(4).Infof("Decoded object: %+v", out)
 	}
 
 	return nil
