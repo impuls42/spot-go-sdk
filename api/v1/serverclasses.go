@@ -22,7 +22,7 @@ func (c *RackspaceSpotClient) ListServerClasses(ctx context.Context, region stri
 
 	var interm ListServerClassesResponse
 	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &interm); err != nil {
-		return nil, err
+		return nil, c.handleAPIError(err, "server class", "", "list")
 	}
 	var serverclasses []ServerClass
 	if region != "" {
@@ -71,7 +71,7 @@ func (c *RackspaceSpotClient) GetServerClass(ctx context.Context, name string) (
 
 	var interm ListServerClassesResponse
 	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &interm); err != nil {
-		return nil, err
+		return nil, c.handleAPIError(err, "server class", name, "get")
 	}
 	marketPrice, err := c.GetMarketPriceForServerClass(ctx, name)
 	if err != nil {

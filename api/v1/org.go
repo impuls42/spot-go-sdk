@@ -19,10 +19,7 @@ func (c *RackspaceSpotClient) ListOrganizations(ctx context.Context) ([]Organiza
 	// Pass &response to doRequest so it decodes automatically
 	err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &response)
 	if err != nil {
-		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
-			return nil, fmt.Errorf("access denied: you do not have permission to list organizations")
-		}
-		return nil, err
+		return nil, c.handleAPIError(err, "organization", "", "list")
 	}
 	return response.Organizations, nil
 }
@@ -38,11 +35,7 @@ func (c *RackspaceSpotClient) getOrgIDIfExists(ctx context.Context, orgName stri
 	// Pass &response to doRequest so it decodes automatically
 	err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &response)
 	if err != nil {
-		// Specific 403 handling if doRequest returns your custom HTTPStatusError
-		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
-			return false, "", fmt.Errorf("access denied: you do not have permission to list organizations")
-		}
-		return false, "", err
+		return false, "", c.handleAPIError(err, "organization", orgName, "find")
 	}
 
 	for _, org := range response.Organizations {

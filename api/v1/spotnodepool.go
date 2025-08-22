@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-
-	"github.com/google/uuid"
 )
 
 // ListSpotNodePools retrieves all spot node pools in a namespace.
@@ -32,21 +30,21 @@ func (c *RackspaceSpotClient) ListSpotNodePools(ctx context.Context, org, clouds
 
 	var pool SpotNodePoolListResponse
 	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &pool); err != nil {
-		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
-			return nil, fmt.Errorf("access denied: you do not have permission to list spot node pools in the namespace '%s'", org)
-		}
-		return nil, err
+		return nil, c.handleAPIError(err, "spot node pool", cloudspaceName, "list")
 	}
 
 	var finalList []*SpotNodePool
 	for _, item := range pool.Items {
 		finalList = append(finalList, &SpotNodePool{
-			Name:        item.Metadata.Name,
-			Org:         org,
-			Cloudspace:  item.Spec.CloudSpace,
-			ServerClass: item.Spec.ServerClass,
-			Desired:     item.Spec.Desired,
-			BidPrice:    item.Spec.BidPrice + "$",
+			Name:              item.Metadata.Name,
+			CreationTimestamp: item.Metadata.CreationTimestamp,
+			Org:               org,
+			Cloudspace:        item.Spec.CloudSpace,
+			ServerClass:       item.Spec.ServerClass,
+			Desired:           item.Spec.Desired,
+			BidPrice:          item.Spec.BidPrice + "$",
+			WonCount:          item.Status.WonCount,
+			Status:            item.Status.BidStatus,
 		})
 	}
 	return finalList, nil
@@ -63,7 +61,7 @@ func (c *RackspaceSpotClient) CreateSpotNodePool(ctx context.Context, org string
 	}
 	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/spotnodepools", c.BaseURL, orgID)
 
-	spotNodePoolCreateRequestBody := SpotNodePoolCreateRequestBody{
+	spotNodePoolCreateRequestBody := SpotNodePoolRequestBody{
 		APIVersion: "ngpc.rxt.io/v1",
 		Kind:       "SpotNodePool",
 		Metadata: struct {
@@ -73,7 +71,7 @@ func (c *RackspaceSpotClient) CreateSpotNodePool(ctx context.Context, org string
 				NgpcRxtIoCloudspace string `json:"ngpc.rxt.io/cloudspace"`
 			} `json:"labels"`
 		}{
-			Name:      uuid.New().String(),
+			Name:      pool.Name,
 			Namespace: orgID,
 			Labels: struct {
 				NgpcRxtIoCloudspace string `json:"ngpc.rxt.io/cloudspace"`
@@ -114,51 +112,112 @@ func (c *RackspaceSpotClient) CreateSpotNodePool(ctx context.Context, org string
 	}
 
 	err = c.doRequest(ctx, http.MethodPost, url, body, c.authHeader(), nil)
+	return c.handleAPIError(err, "spot node pool", pool.Name, "create")
+}
+
+// UpdateSpotNodePool updates a spot node pool in the given namespace.
+func (c *RackspaceSpotClient) UpdateSpotNodePool(ctx context.Context, org string, pool SpotNodePool) error {
+	if pool.Name == "" {
+		return fmt.Errorf("name must be provided")
+	}
+
+	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
 	if err != nil {
-		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
-			return fmt.Errorf("access denied: you do not have permission to create the spot node pool '%s'", pool.Name)
-		}
 		return err
 	}
-	return nil
+	if !exists {
+		return fmt.Errorf("organization '%s' not found", org)
+	}
+	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/spotnodepools/%s", c.BaseURL, orgID, pool.Name)
+
+	// Only include mutable fields in the update request
+	updateBody := struct {
+		Spec struct {
+			Desired     int    `json:"desired,omitempty"`
+			BidPrice    string `json:"bidPrice,omitempty"`
+			Autoscaling struct {
+				Enabled  bool  `json:"enabled"`
+				MinNodes int64 `json:"minNodes,omitempty"`
+				MaxNodes int64 `json:"maxNodes,omitempty"`
+			} `json:"autoscaling"`
+		} `json:"spec"`
+	}{
+		Spec: struct {
+			Desired     int    `json:"desired,omitempty"`
+			BidPrice    string `json:"bidPrice,omitempty"`
+			Autoscaling struct {
+				Enabled  bool  `json:"enabled"`
+				MinNodes int64 `json:"minNodes,omitempty"`
+				MaxNodes int64 `json:"maxNodes,omitempty"`
+			} `json:"autoscaling"`
+		}{
+			Desired:  pool.Desired,
+			BidPrice: pool.BidPrice,
+			Autoscaling: struct {
+				Enabled  bool  `json:"enabled"`
+				MinNodes int64 `json:"minNodes,omitempty"`
+				MaxNodes int64 `json:"maxNodes,omitempty"`
+			}{
+				Enabled:  pool.Autoscaling.Enabled,
+				MinNodes: pool.Autoscaling.MinNodes,
+				MaxNodes: pool.Autoscaling.MaxNodes,
+			},
+		},
+	}
+
+	body, err := json.Marshal(updateBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal update body: %w", err)
+	}
+
+	var respBody interface{}
+	err = c.doRequest(ctx, http.MethodPatch, url, body, c.authHeader(), &respBody)
+	return c.handleAPIError(err, "spot node pool", pool.Name, "update")
 }
 
 // DeleteSpotNodePool deletes a spot node pool by name in the given namespace.
 func (c *RackspaceSpotClient) DeleteSpotNodePool(ctx context.Context, org, name string) error {
-	// 	url := fmt.Sprintf("%s/api/namespaces/%s/spotnodepools/%s", c.BaseURL, namespace, name)
-	// 	resp, err := httpclient.DoRequest(ctx, c.HTTPClient, http.MethodDelete, url, nil, c.authHeader())
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	defer resp.Body.Close()
-	// 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
-	// 		b, _ := ioutil.ReadAll(resp.Body)
-	// 		return fmt.Errorf("failed to delete spot node pool: %s", string(b))
-	// 	}
-	return nil
+	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
+	if err != nil {
+		return c.handleAPIError(err, "organization", org, "find")
+	}
+	if !exists {
+		return fmt.Errorf("organization '%s' not found", org)
+	}
+	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/spotnodepools/%s", c.BaseURL, orgID, name)
+
+	err = c.doRequest(ctx, http.MethodDelete, url, nil, c.authHeader(), nil)
+	return c.handleAPIError(err, "spot node pool", name, "delete")
 }
 
 // GetSpotNodePool retrieves a spot node pool by name in the given namespace.
-func (c *RackspaceSpotClient) GetSpotNodePool(ctx context.Context, namespace, cloudspaceName string) (*SpotNodePool, error) {
-	// labelKey := "ngpc.rxt.io/cloudspace"
-	// labelSelector := fmt.Sprintf("%s=%s", labelKey, cloudspaceName)
-	// encodedSelector := url.QueryEscape(labelSelector)
+func (c *RackspaceSpotClient) GetSpotNodePool(ctx context.Context, org, name string) (*SpotNodePool, error) {
+	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, fmt.Errorf("organization '%s' not found", org)
+	}
+	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/spotnodepools/%s", c.BaseURL, orgID, name)
 
-	// url := fmt.Sprintf("%s/namespaces/%s/spotnodepools?labelSelector=%s", c.BaseURL, namespace, encodedSelector)
-	// fmt.Println(url)
+	var interm SpotNodePoolGetResponse
+	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &interm); err != nil {
+		return nil, c.handleAPIError(err, "spot node pool", name, "get")
+	}
 
-	// resp, err := httpclient.DoRequest(ctx, c.HTTPClient, http.MethodGet, url, nil, c.authHeader())
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// defer resp.Body.Close()
-	// if resp.StatusCode != http.StatusOK {
-	// 	b, _ := ioutil.ReadAll(resp.Body)
-	// 	return nil, fmt.Errorf("failed to get spot node pool: %s", string(b))
-	// }
-	// var pool SpotNodePool
-	// if err := json.NewDecoder(resp.Body).Decode(&pool); err != nil {
-	// 	return nil, err
-	// }
-	return nil, nil
+	labels := interm.Metadata.Labels
+	cloudspaceName := labels.NgpcRxtIoCloudspace
+
+	return &SpotNodePool{
+		Name:              interm.Metadata.Name,
+		CreationTimestamp: interm.Metadata.CreationTimestamp,
+		Org:               org,
+		Cloudspace:        cloudspaceName,
+		ServerClass:       interm.Spec.ServerClass,
+		Desired:           interm.Spec.Desired,
+		BidPrice:          interm.Spec.BidPrice + "$",
+		WonCount:          interm.Status.WonCount,
+		Status:            interm.Status.BidStatus,
+	}, nil
 }

@@ -12,7 +12,7 @@ func (c *RackspaceSpotClient) ListRegions(ctx context.Context) ([]Region, error)
 
 	var regions ListRegionsResponse
 	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &regions); err != nil {
-		return nil, err
+		return nil, c.handleAPIError(err, "region", "", "list")
 	}
 	var regionList []Region
 	for _, item := range regions.Items {
@@ -30,7 +30,7 @@ func (c *RackspaceSpotClient) GetRegion(ctx context.Context, name string) (*Regi
 
 	var regions ListRegionsResponse
 	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &regions); err != nil {
-		return nil, err
+		return nil, c.handleAPIError(err, "region", name, "get")
 	}
 	var region Region
 	for _, item := range regions.Items {
@@ -42,13 +42,13 @@ func (c *RackspaceSpotClient) GetRegion(ctx context.Context, name string) (*Regi
 			return &region, nil
 		}
 	}
-	return nil, fmt.Errorf("region '%s' not found", name)
+	return nil, c.handleAPIError(fmt.Errorf("region '%s' not found", name), "region", name, "get")
 }
 
 func (c *RackspaceSpotClient) checkIfRegionExists(ctx context.Context, name string) (bool, error) {
 	regions, err := c.ListRegions(ctx)
 	if err != nil {
-		return false, err
+		return false, c.handleAPIError(err, "region", name, "check")
 	}
 	for _, region := range regions {
 		if region.Name == name {

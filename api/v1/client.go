@@ -55,6 +55,47 @@ func (e *HTTPStatusError) Error() string {
 	return fmt.Sprintf("HTTP %d: %s", e.StatusCode, e.Body)
 }
 
+// handleAPIError processes HTTP errors and returns user-friendly error messages
+func (c *RackspaceSpotClient) handleAPIError(err error, resourceType, resourceName string, operation string) error {
+	if err == nil {
+		return nil
+	}
+
+	httpErr, ok := err.(*HTTPStatusError)
+	if !ok {
+		return fmt.Errorf("failed to %s %s: %w", operation, resourceType, err)
+	}
+
+	switch httpErr.StatusCode {
+	case http.StatusForbidden, http.StatusUnauthorized:
+		// Try to extract the detailed error message from the response body
+		var apiErr struct {
+			Message string `json:"message"`
+		}
+		if httpErr.Body != "" {
+			if json.Unmarshal([]byte(httpErr.Body), &apiErr) == nil && apiErr.Message != "" {
+				return fmt.Errorf("access denied: %s", apiErr.Message)
+			}
+		}
+		return fmt.Errorf("access denied: you do not have permission to %s the %s '%s'", operation, resourceType, resourceName)
+
+	case http.StatusNotFound:
+		return fmt.Errorf("%s '%s' not found", resourceType, resourceName)
+
+	case http.StatusBadRequest, http.StatusConflict:
+		if httpErr.Body != "" {
+			return fmt.Errorf("invalid request: %s", httpErr.Body)
+		}
+		return fmt.Errorf("invalid request: failed to %s %s", operation, resourceType)
+
+	default:
+		if httpErr.Body != "" {
+			return fmt.Errorf("API error (HTTP %d): %s", httpErr.StatusCode, httpErr.Body)
+		}
+		return fmt.Errorf("API error (HTTP %d): failed to %s %s", httpErr.StatusCode, operation, resourceType)
+	}
+}
+
 func (c *RackspaceSpotClient) doRequest(ctx context.Context, method, url string, body []byte, headers map[string]string, out interface{}) error {
 	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
 	if err != nil {
@@ -65,6 +106,9 @@ func (c *RackspaceSpotClient) doRequest(ctx context.Context, method, url string,
 	// Add headers
 	for key, value := range headers {
 		req.Header.Set(key, value)
+	}
+	if method == http.MethodPatch {
+		req.Header.Set("Content-Type", "application/merge-patch+json")
 	}
 
 	// ----- Request logging -----

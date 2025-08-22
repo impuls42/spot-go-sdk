@@ -33,7 +33,7 @@ func (c *RackspaceSpotClient) GetPriceDetails(ctx context.Context) ([]*PriceDeta
 	url := "https://ngpc-prod-public-data.s3.us-east-2.amazonaws.com/percentiles.json"
 	var serverData ServerData
 	if err := c.doRequest(ctx, http.MethodGet, url, nil, nil, &serverData); err != nil {
-		return nil, err
+		return nil, c.handleAPIError(err, "server class", "", "get price details")
 	}
 	var completePriceDetails []*PriceDetails
 
@@ -58,7 +58,7 @@ func (c *RackspaceSpotClient) GetPriceDetailsForServerClass(ctx context.Context,
 	url := "https://ngpc-prod-public-data.s3.us-east-2.amazonaws.com/percentiles.json"
 	var serverData ServerData
 	if err := c.doRequest(ctx, http.MethodGet, url, nil, nil, &serverData); err != nil {
-		return nil, err
+		return nil, c.handleAPIError(err, "server class", serverClass, "get price details")
 	}
 	var priceDetails PriceDetails
 
@@ -86,7 +86,7 @@ func (c *RackspaceSpotClient) GetPriceDetailsForRegion(ctx context.Context, regi
 	url := "https://ngpc-prod-public-data.s3.us-east-2.amazonaws.com/percentiles.json"
 	var serverData ServerData
 	if err := c.doRequest(ctx, http.MethodGet, url, nil, nil, &serverData); err != nil {
-		return nil, err
+		return nil, c.handleAPIError(err, "region", regionName, "get price details")
 	}
 	var priceDetails PriceDetails
 
@@ -113,7 +113,7 @@ func (c *RackspaceSpotClient) GetMarketPriceForServerClass(ctx context.Context, 
 	url := "https://ngpc-prod-public-data.s3.us-east-2.amazonaws.com/percentiles.json"
 	var serverData ServerData
 	if err := c.doRequest(ctx, http.MethodGet, url, nil, nil, &serverData); err != nil {
-		return "", err
+		return "", c.handleAPIError(err, "server class", serverClass, "get market price")
 	}
 
 	for _, details := range serverData.Regions {

@@ -20,7 +20,8 @@ type CloudSpace struct {
 	AssignedServers      map[string]AssignedServer `json:"assignedServers,omitempty"`
 	SpotNodepools        []*SpotNodePool           `json:"spotNodepools,omitempty"`
 	OnDemandNodePools    []*OnDemandNodePool       `json:"ondemandnodepools,omitempty"`
-	Health               string                    `json:"status,omitempty"`
+	Status               string                    `json:"status,omitempty"`
+	Message              string                    `json:"message,omitempty"`
 }
 
 type AssignedServer struct {
@@ -36,10 +37,12 @@ type SpotNodePoolList struct {
 
 type SpotNodePool struct {
 	Name              string            `json:"name"`
+	CreationTimestamp time.Time         `json:"creationTimestamp,omitempty"`
 	Org               string            `json:"org,omitempty"`
 	Cloudspace        string            `json:"cloudspace,omitempty"`
 	ServerClass       string            `json:"server_class,omitempty"`
 	Desired           int               `json:"desired,omitempty"`
+	WonCount          int               `json:"wonCount,omitempty"`
 	CustomAnnotations map[string]string `json:"customAnnotations,omitempty"`
 	CustomLabels      map[string]string `json:"customLabels,omitempty"`
 	CustomTaints      map[string]string `json:"customTaints,omitempty"`
@@ -49,6 +52,7 @@ type SpotNodePool struct {
 		MaxNodes int64 `json:"maxNodes"`
 	} `json:"autoscaling"`
 	BidPrice string `json:"bid_price,omitempty"`
+	Status   string `json:"status,omitempty"`
 }
 
 type OnDemandNodePoolList struct {
@@ -57,10 +61,12 @@ type OnDemandNodePoolList struct {
 
 type OnDemandNodePool struct {
 	Name              string            `json:"name"`
+	CreationTimestamp time.Time         `json:"creationTimestamp,omitempty"`
 	Org               string            `json:"org,omitempty"`
 	Cloudspace        string            `json:"cloudspace,omitempty"`
 	ServerClass       string            `json:"server_class,omitempty"`
 	Desired           int               `json:"desired,omitempty"`
+	WonCount          int               `json:"wonCount,omitempty"`
 	CustomAnnotations map[string]string `json:"customAnnotations,omitempty"`
 	CustomLabels      map[string]string `json:"customLabels,omitempty"`
 	CustomTaints      map[string]string `json:"customTaints,omitempty"`
@@ -69,6 +75,7 @@ type OnDemandNodePool struct {
 		MinNodes int  `json:"minNodes"`
 		MaxNodes int  `json:"maxNodes"`
 	} `json:"autoscaling"`
+	Status string `json:"status,omitempty"`
 }
 
 type OrganizationList struct {

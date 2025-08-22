@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-
-	"github.com/google/uuid"
 )
 
 // ListOnDemandNodePools retrieves all on-demand node pools in a namespace.
@@ -30,12 +28,9 @@ func (c *RackspaceSpotClient) ListOnDemandNodePools(ctx context.Context, org, cl
 		c.BaseURL, orgID, encodedSelector,
 	)
 
-	var pool SpotNodePoolListResponse
+	var pool OnDemandNodePoolListResponse
 	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &pool); err != nil {
-		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
-			return nil, fmt.Errorf("access denied: you do not have permission to list on-demand node pools in the namespace '%s'", org)
-		}
-		return nil, err
+		return nil, c.handleAPIError(err, "ondemand node pool", cloudspaceName, "list")
 	}
 
 	var finalList []*OnDemandNodePool
@@ -46,12 +41,14 @@ func (c *RackspaceSpotClient) ListOnDemandNodePools(ctx context.Context, org, cl
 			Cloudspace:  item.Spec.CloudSpace,
 			ServerClass: item.Spec.ServerClass,
 			Desired:     item.Spec.Desired,
+			WonCount:    item.Status.ReservedCount,
+			Status:      item.Status.ReservedStatus,
 		})
 	}
 	return finalList, nil
 }
 
-// CreateOnDemandNodePool creates a new on-demand node pool in the given namespace.
+// CreateOnDemandNodePool creates a new ondemand node pool in the given namespace.
 func (c *RackspaceSpotClient) CreateOnDemandNodePool(ctx context.Context, org string, pool OnDemandNodePool) error {
 
 	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
@@ -74,7 +71,7 @@ func (c *RackspaceSpotClient) CreateOnDemandNodePool(ctx context.Context, org st
 				NgpcRxtIoCloudspace string `json:"ngpc.rxt.io/cloudspace"`
 			} `json:"labels"`
 		}{
-			Name:      uuid.New().String(),
+			Name:      pool.Name,
 			Namespace: orgID,
 			Labels: struct {
 				NgpcRxtIoCloudspace string `json:"ngpc.rxt.io/cloudspace"`
@@ -114,44 +111,113 @@ func (c *RackspaceSpotClient) CreateOnDemandNodePool(ctx context.Context, org st
 
 	err = c.doRequest(ctx, http.MethodPost, url, body, c.authHeader(), nil)
 	if err != nil {
-		if httpErr, ok := err.(*HTTPStatusError); ok && httpErr.StatusCode == http.StatusForbidden || httpErr.StatusCode == http.StatusUnauthorized {
-			return fmt.Errorf("access denied: you do not have permission to create the ondemand node pool '%s'", pool.Name)
-		}
-		return err
+		return c.handleAPIError(err, "ondemand node pool", pool.Name, "create")
 	}
 	return nil
 }
 
-// DeleteOnDemandNodePool deletes an on-demand node pool by name in the given namespace.
-func (c *RackspaceSpotClient) DeleteOnDemandNodePool(ctx context.Context, namespace, name string) error {
-	// 	url := fmt.Sprintf("%s/api/namespaces/%s/ondemandnodepools/%s", c.BaseURL, namespace, name)
-	// 	resp, err := httpclient.DoRequest(ctx, c.HTTPClient, http.MethodDelete, url, nil, c.authHeader())
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	defer resp.Body.Close()
-	// 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
-	// 		b, _ := ioutil.ReadAll(resp.Body)
-	// 		return fmt.Errorf("failed to delete on-demand node pool: %s", string(b))
-	// 	}
-	return nil
+// DeleteOnDemandNodePool deletes an ondemand node pool by name in the given namespace.
+func (c *RackspaceSpotClient) DeleteOnDemandNodePool(ctx context.Context, org, name string) error {
+
+	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
+	if err != nil {
+		return c.handleAPIError(err, "organization", org, "find")
+	}
+	if !exists {
+		return fmt.Errorf("organization '%s' not found", org)
+	}
+	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/ondemandnodepools/%s", c.BaseURL, orgID, name)
+
+	err = c.doRequest(ctx, http.MethodDelete, url, nil, c.authHeader(), nil)
+	return c.handleAPIError(err, "ondemand node pool", name, "delete")
+
 }
 
-// GetOnDemandNodePool retrieves an on-demand node pool by name in the given namespace.
-func (c *RackspaceSpotClient) GetOnDemandNodePool(ctx context.Context, namespace, name string) (*OnDemandNodePool, error) {
-	// 	url := fmt.Sprintf("%s/api/namespaces/%s/ondemandnodepools/%s", c.BaseURL, namespace, name)
-	// 	resp, err := httpclient.DoRequest(ctx, c.HTTPClient, http.MethodGet, url, nil, c.authHeader())
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	defer resp.Body.Close()
-	// 	if resp.StatusCode != http.StatusOK {
-	// 		b, _ := ioutil.ReadAll(resp.Body)
-	// 		return nil, fmt.Errorf("failed to get on-demand node pool: %s", string(b))
-	// 	}
-	// 	var pool OnDemandNodePool
-	// 	if err := json.NewDecoder(resp.Body).Decode(&pool); err != nil {
-	// 		return nil, err
-	// 	}
-	return nil, nil
+// GetOnDemandNodePool retrieves an ondemand node pool by name in the given namespace.
+func (c *RackspaceSpotClient) GetOnDemandNodePool(ctx context.Context, org, name string) (*OnDemandNodePool, error) {
+	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, fmt.Errorf("organization '%s' not found", org)
+	}
+	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/ondemandnodepools/%s", c.BaseURL, orgID, name)
+
+	var interm OnDemandNodePoolGetResponse
+	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &interm); err != nil {
+		return nil, c.handleAPIError(err, "ondemand node pool", name, "get")
+	}
+
+	labels := interm.Metadata.Labels
+	cloudspaceName := labels.NgpcRxtIoCloudspace
+
+	return &OnDemandNodePool{
+		Name:              interm.Metadata.Name,
+		CreationTimestamp: interm.Metadata.CreationTimestamp,
+		Org:               org,
+		Cloudspace:        cloudspaceName,
+		ServerClass:       interm.Spec.ServerClass,
+		Desired:           interm.Spec.Desired,
+		WonCount:          interm.Status.ReservedCount,
+		Status:            interm.Status.ReservedStatus,
+	}, nil
+}
+
+func (c *RackspaceSpotClient) UpdateOnDemandNodePool(ctx context.Context, org string, pool OnDemandNodePool) error {
+
+	if pool.Name == "" {
+		return fmt.Errorf("name must be provided")
+	}
+
+	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("organization '%s' not found", org)
+	}
+	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/ondemandnodepools/%s", c.BaseURL, orgID, pool.Name)
+
+	// Only include mutable fields in the update request
+	updateBody := struct {
+		Spec struct {
+			Desired     int `json:"desired,omitempty"`
+			Autoscaling struct {
+				Enabled  bool  `json:"enabled"`
+				MinNodes int64 `json:"minNodes,omitempty"`
+				MaxNodes int64 `json:"maxNodes,omitempty"`
+			} `json:"autoscaling"`
+		} `json:"spec"`
+	}{
+		Spec: struct {
+			Desired     int `json:"desired,omitempty"`
+			Autoscaling struct {
+				Enabled  bool  `json:"enabled"`
+				MinNodes int64 `json:"minNodes,omitempty"`
+				MaxNodes int64 `json:"maxNodes,omitempty"`
+			} `json:"autoscaling"`
+		}{
+			Desired: pool.Desired,
+			Autoscaling: struct {
+				Enabled  bool  `json:"enabled"`
+				MinNodes int64 `json:"minNodes,omitempty"`
+				MaxNodes int64 `json:"maxNodes,omitempty"`
+			}{
+				Enabled:  pool.Autoscaling.Enabled,
+				MinNodes: int64(pool.Autoscaling.MinNodes),
+				MaxNodes: int64(pool.Autoscaling.MaxNodes),
+			},
+		},
+	}
+
+	body, err := json.Marshal(updateBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal update body: %w", err)
+	}
+
+	var respBody interface{}
+	err = c.doRequest(ctx, http.MethodPatch, url, body, c.authHeader(), &respBody)
+	return c.handleAPIError(err, "ondemand node pool", pool.Name, "update")
+
 }

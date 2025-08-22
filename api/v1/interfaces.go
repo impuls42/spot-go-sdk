@@ -20,6 +20,7 @@ type CloudspaceAPI interface {
 type SpotNodePoolAPI interface {
 	ListSpotNodePools(ctx context.Context, org string, cloudspace string) ([]*SpotNodePool, error)
 	CreateSpotNodePool(ctx context.Context, org string, pool SpotNodePool) error
+	UpdateSpotNodePool(ctx context.Context, org string, pool SpotNodePool) error
 	GetSpotNodePool(ctx context.Context, org, name string) (*SpotNodePool, error)
 	DeleteSpotNodePool(ctx context.Context, org, name string) error
 }
@@ -28,6 +29,7 @@ type SpotNodePoolAPI interface {
 type OnDemandNodePoolAPI interface {
 	ListOnDemandNodePools(ctx context.Context, org string, cloudspace string) ([]*OnDemandNodePool, error)
 	CreateOnDemandNodePool(ctx context.Context, org string, pool OnDemandNodePool) error
+	UpdateOnDemandNodePool(ctx context.Context, org string, pool OnDemandNodePool) error
 	GetOnDemandNodePool(ctx context.Context, org, name string) (*OnDemandNodePool, error)
 	DeleteOnDemandNodePool(ctx context.Context, org, name string) error
 }
