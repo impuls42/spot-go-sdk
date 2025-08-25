@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
@@ -46,6 +47,10 @@ func isTokenExpired(tokenString string) bool {
 	return claims.Exp < now-60
 }
 
+func GetClientID() string {
+	return os.Getenv("RXTSPOT_CLIENT_ID")
+}
+
 // Authenticate gets a new access token if the current one is missing or expired
 func (c *RackspaceSpotClient) Authenticate(ctx context.Context) (string, error) {
 	// If we have a token and it's not expired, use it
@@ -55,7 +60,7 @@ func (c *RackspaceSpotClient) Authenticate(ctx context.Context) (string, error) 
 	// No valid token, get a new one
 	form := url.Values{}
 	form.Set("grant_type", "refresh_token")
-	form.Set("client_id", "mwG3lUMV8KyeMqHe4fJ5Bb3nM1vBvRNa")
+	form.Set("client_id", GetClientID())
 	form.Set("refresh_token", c.RefreshToken)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.OAuthURL+"/oauth/token", strings.NewReader(form.Encode()))

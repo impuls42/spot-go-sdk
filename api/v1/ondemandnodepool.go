@@ -35,14 +35,22 @@ func (c *RackspaceSpotClient) ListOnDemandNodePools(ctx context.Context, org, cl
 
 	var finalList []*OnDemandNodePool
 	for _, item := range pool.Items {
+		var onDemandPoolcost string
+		serverClass, err := c.GetServerClass(ctx, item.Spec.ServerClass)
+		if err != nil {
+			onDemandPoolcost = "NA"
+		}
+		onDemandPoolcost = serverClass.OnDemandPricePerHour
 		finalList = append(finalList, &OnDemandNodePool{
-			Name:        item.Metadata.Name,
-			Org:         org,
-			Cloudspace:  item.Spec.CloudSpace,
-			ServerClass: item.Spec.ServerClass,
-			Desired:     item.Spec.Desired,
-			WonCount:    item.Status.ReservedCount,
-			Status:      item.Status.ReservedStatus,
+			Name:                 item.Metadata.Name,
+			CreationTimestamp:    item.Metadata.CreationTimestamp,
+			Org:                  org,
+			Cloudspace:           item.Spec.CloudSpace,
+			ServerClass:          item.Spec.ServerClass,
+			Desired:              item.Spec.Desired,
+			WonCount:             item.Status.ReservedCount,
+			Status:               item.Status.ReservedStatus,
+			OnDemandPricePerHour: onDemandPoolcost,
 		})
 	}
 	return finalList, nil
@@ -149,18 +157,24 @@ func (c *RackspaceSpotClient) GetOnDemandNodePool(ctx context.Context, org, name
 		return nil, c.handleAPIError(err, "ondemand node pool", name, "get")
 	}
 
+	serverClass, err := c.GetServerClass(ctx, interm.Spec.ServerClass)
+	if err != nil {
+		return nil, err
+	}
+
 	labels := interm.Metadata.Labels
 	cloudspaceName := labels.NgpcRxtIoCloudspace
 
 	return &OnDemandNodePool{
-		Name:              interm.Metadata.Name,
-		CreationTimestamp: interm.Metadata.CreationTimestamp,
-		Org:               org,
-		Cloudspace:        cloudspaceName,
-		ServerClass:       interm.Spec.ServerClass,
-		Desired:           interm.Spec.Desired,
-		WonCount:          interm.Status.ReservedCount,
-		Status:            interm.Status.ReservedStatus,
+		Name:                 interm.Metadata.Name,
+		CreationTimestamp:    interm.Metadata.CreationTimestamp,
+		Org:                  org,
+		Cloudspace:           cloudspaceName,
+		ServerClass:          interm.Spec.ServerClass,
+		Desired:              interm.Spec.Desired,
+		WonCount:             interm.Status.ReservedCount,
+		Status:               interm.Status.ReservedStatus,
+		OnDemandPricePerHour: serverClass.OnDemandPricePerHour,
 	}, nil
 }
 

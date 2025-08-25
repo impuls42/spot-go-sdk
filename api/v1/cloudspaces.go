@@ -41,7 +41,7 @@ func (c *RackspaceSpotClient) ListCloudspaces(ctx context.Context, org string) (
 			Name:                 cs.Metadata.Name,
 			Org:                  org,
 			CreationTimestamp:    cs.Metadata.CreationTimestamp,
-			Cni:                  cs.Spec.Cni,
+			CNI:                  cs.Spec.CNI,
 			DeploymentType:       cs.Spec.DeploymentType,
 			GpuEnabled:           cs.Spec.GpuEnabled,
 			KubernetesVersion:    cs.Spec.KubernetesVersion,
@@ -87,7 +87,7 @@ func (c *RackspaceSpotClient) CreateCloudspace(ctx context.Context, cs CloudSpac
 			Cloud             string `json:"cloud"`
 			Region            string `json:"region"`
 			Webhook           string `json:"webhook"`
-			Cni               string `json:"cni"`
+			CNI               string `json:"cni"`
 			KubernetesVersion string `json:"kubernetesVersion"`
 			HAControlPlane    bool   `json:"HAControlPlane"`
 			GpuEnabled        bool   `json:"gpuEnabled"`
@@ -96,7 +96,7 @@ func (c *RackspaceSpotClient) CreateCloudspace(ctx context.Context, cs CloudSpac
 			Cloud:             "default",
 			Region:            cs.Region,
 			Webhook:           cs.PreemptionWebhookURL,
-			Cni:               cs.Cni,
+			CNI:               cs.CNI,
 			KubernetesVersion: cs.KubernetesVersion,
 			HAControlPlane:    false,
 			GpuEnabled:        cs.GpuEnabled,
@@ -163,7 +163,7 @@ func (c *RackspaceSpotClient) GetCloudspace(ctx context.Context, org, name strin
 		Name:                 interm.Metadata.Name,
 		Org:                  org,
 		CreationTimestamp:    interm.Metadata.CreationTimestamp,
-		Cni:                  interm.Spec.Cni,
+		CNI:                  interm.Spec.CNI,
 		DeploymentType:       interm.Spec.DeploymentType,
 		GpuEnabled:           interm.Spec.GpuEnabled,
 		KubernetesVersion:    interm.Spec.KubernetesVersion,

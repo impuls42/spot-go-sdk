@@ -11,7 +11,7 @@ type cloudSpaceGetResponse struct {
 	Spec struct {
 		BidRequests       []string `json:"bidRequests"`
 		Cloud             string   `json:"cloud"`
-		Cni               string   `json:"cni"`
+		CNI               string   `json:"cni"`
 		DeploymentType    string   `json:"deploymentType"`
 		GpuEnabled        bool     `json:"gpuEnabled"`
 		KubernetesVersion string   `json:"kubernetesVersion"`
@@ -94,7 +94,7 @@ type CloudSpaceCreateRequestBody struct {
 		Cloud             string `json:"cloud"`
 		Region            string `json:"region"`
 		Webhook           string `json:"webhook"`
-		Cni               string `json:"cni"`
+		CNI               string `json:"cni"`
 		KubernetesVersion string `json:"kubernetesVersion"`
 		HAControlPlane    bool   `json:"HAControlPlane"`
 		GpuEnabled        bool   `json:"gpuEnabled"`

@@ -30,9 +30,8 @@ type ServerClassPricingDetails struct {
 // GetPriceDetails retrieves the price details for a server class.
 func (c *RackspaceSpotClient) GetPriceDetails(ctx context.Context) ([]*PriceDetails, error) {
 
-	url := "https://ngpc-prod-public-data.s3.us-east-2.amazonaws.com/percentiles.json"
 	var serverData ServerData
-	if err := c.doRequest(ctx, http.MethodGet, url, nil, nil, &serverData); err != nil {
+	if err := c.doRequest(ctx, http.MethodGet, PriceDetailsURL, nil, nil, &serverData); err != nil {
 		return nil, c.handleAPIError(err, "server class", "", "get price details")
 	}
 	var completePriceDetails []*PriceDetails
@@ -55,9 +54,8 @@ func (c *RackspaceSpotClient) GetPriceDetails(ctx context.Context) ([]*PriceDeta
 
 func (c *RackspaceSpotClient) GetPriceDetailsForServerClass(ctx context.Context, serverClass string) (*PriceDetails, error) {
 
-	url := "https://ngpc-prod-public-data.s3.us-east-2.amazonaws.com/percentiles.json"
 	var serverData ServerData
-	if err := c.doRequest(ctx, http.MethodGet, url, nil, nil, &serverData); err != nil {
+	if err := c.doRequest(ctx, http.MethodGet, PriceDetailsURL, nil, nil, &serverData); err != nil {
 		return nil, c.handleAPIError(err, "server class", serverClass, "get price details")
 	}
 	var priceDetails PriceDetails
@@ -83,9 +81,8 @@ func (c *RackspaceSpotClient) GetPriceDetailsForServerClass(ctx context.Context,
 }
 
 func (c *RackspaceSpotClient) GetPriceDetailsForRegion(ctx context.Context, regionName string) (*PriceDetails, error) {
-	url := "https://ngpc-prod-public-data.s3.us-east-2.amazonaws.com/percentiles.json"
 	var serverData ServerData
-	if err := c.doRequest(ctx, http.MethodGet, url, nil, nil, &serverData); err != nil {
+	if err := c.doRequest(ctx, http.MethodGet, PriceDetailsURL, nil, nil, &serverData); err != nil {
 		return nil, c.handleAPIError(err, "region", regionName, "get price details")
 	}
 	var priceDetails PriceDetails
@@ -110,9 +107,8 @@ func (c *RackspaceSpotClient) GetPriceDetailsForRegion(ctx context.Context, regi
 }
 
 func (c *RackspaceSpotClient) GetMarketPriceForServerClass(ctx context.Context, serverClass string) (string, error) {
-	url := "https://ngpc-prod-public-data.s3.us-east-2.amazonaws.com/percentiles.json"
 	var serverData ServerData
-	if err := c.doRequest(ctx, http.MethodGet, url, nil, nil, &serverData); err != nil {
+	if err := c.doRequest(ctx, http.MethodGet, PriceDetailsURL, nil, nil, &serverData); err != nil {
 		return "", c.handleAPIError(err, "server class", serverClass, "get market price")
 	}
 

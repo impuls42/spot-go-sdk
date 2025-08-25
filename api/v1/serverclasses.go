@@ -30,7 +30,8 @@ func (c *RackspaceSpotClient) ListServerClasses(ctx context.Context, region stri
 			if item.Spec.Region == region {
 				marketPrice, err := c.GetMarketPriceForServerClass(ctx, item.Metadata.Name)
 				if err != nil {
-					return nil, err
+					// If market price is not found, set to "N/A" and continue
+					marketPrice = "N/A"
 				}
 				serverclasses = append(serverclasses, ServerClass{
 					Name:                      item.Metadata.Name,
@@ -38,6 +39,7 @@ func (c *RackspaceSpotClient) ListServerClasses(ctx context.Context, region stri
 					Region:                    item.Spec.Region,
 					CurrentMarketPricePerHour: marketPrice,
 					MinBidPricePerHour:        "$" + item.Spec.MinBidPricePerHour,
+					OnDemandPricePerHour:      "$" + item.Spec.OnDemandPricing.Cost,
 					Resources: Resource{
 						CPU:    item.Spec.Resources.CPU,
 						Memory: item.Spec.Resources.Memory,
@@ -49,13 +51,18 @@ func (c *RackspaceSpotClient) ListServerClasses(ctx context.Context, region stri
 	}
 
 	for _, item := range interm.Items {
-		marketPrice, _ := c.GetMarketPriceForServerClass(ctx, item.Metadata.Name)
+		marketPrice, err := c.GetMarketPriceForServerClass(ctx, item.Metadata.Name)
+		if err != nil {
+			// If market price is not found, set to "N/A" and continue
+			marketPrice = "N/A"
+		}
 		serverclasses = append(serverclasses, ServerClass{
 			Name:                      item.Metadata.Name,
 			Category:                  item.Spec.Category,
 			Region:                    item.Spec.Region,
 			CurrentMarketPricePerHour: marketPrice,
 			MinBidPricePerHour:        "$" + item.Spec.MinBidPricePerHour,
+			OnDemandPricePerHour:      "$" + item.Spec.OnDemandPricing.Cost,
 			Resources: Resource{
 				CPU:    item.Spec.Resources.CPU,
 				Memory: item.Spec.Resources.Memory,
@@ -88,6 +95,7 @@ func (c *RackspaceSpotClient) GetServerClass(ctx context.Context, name string) (
 				Region:                    item.Spec.Region,
 				MinBidPricePerHour:        "$" + item.Spec.MinBidPricePerHour,
 				CurrentMarketPricePerHour: marketPrice,
+				OnDemandPricePerHour:      "$" + item.Spec.OnDemandPricing.Cost,
 				Resources: Resource{
 					CPU:    item.Spec.Resources.CPU,
 					Memory: item.Spec.Resources.Memory,

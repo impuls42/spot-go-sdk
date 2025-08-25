@@ -42,7 +42,7 @@ func (c *RackspaceSpotClient) ListSpotNodePools(ctx context.Context, org, clouds
 			Cloudspace:        item.Spec.CloudSpace,
 			ServerClass:       item.Spec.ServerClass,
 			Desired:           item.Spec.Desired,
-			BidPrice:          item.Spec.BidPrice + "$",
+			BidPrice:          "$" + item.Spec.BidPrice,
 			WonCount:          item.Status.WonCount,
 			Status:            item.Status.BidStatus,
 		})
@@ -216,7 +216,7 @@ func (c *RackspaceSpotClient) GetSpotNodePool(ctx context.Context, org, name str
 		Cloudspace:        cloudspaceName,
 		ServerClass:       interm.Spec.ServerClass,
 		Desired:           interm.Spec.Desired,
-		BidPrice:          interm.Spec.BidPrice + "$",
+		BidPrice:          "$" + interm.Spec.BidPrice,
 		WonCount:          interm.Status.WonCount,
 		Status:            interm.Status.BidStatus,
 	}, nil

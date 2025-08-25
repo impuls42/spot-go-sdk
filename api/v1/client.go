@@ -133,7 +133,11 @@ func (c *RackspaceSpotClient) doRequest(ctx context.Context, method, url string,
 	klog.V(2).Infof("Response status: %d %s (duration: %v)", resp.StatusCode, http.StatusText(resp.StatusCode), duration)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		b, _ := io.ReadAll(resp.Body)
+		b, err := io.ReadAll(resp.Body)
+		if err != nil {
+			klog.Errorf("Failed to read response body: %v", err)
+			return fmt.Errorf("read response body: %w", err)
+		}
 		return &HTTPStatusError{StatusCode: resp.StatusCode, Body: string(b)}
 	}
 
@@ -142,7 +146,11 @@ func (c *RackspaceSpotClient) doRequest(ctx context.Context, method, url string,
 		klog.V(3).Infof("Response headers: %+v", resp.Header)
 	}
 	if klog.V(4).Enabled() {
-		respBody, _ := io.ReadAll(resp.Body)
+		respBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			klog.Errorf("Failed to read response body: %v", err)
+			return fmt.Errorf("read response body: %w", err)
+		}
 		resp.Body = io.NopCloser(bytes.NewReader(respBody))
 		klog.V(4).Infof("Response body: %s", string(respBody))
 	}
