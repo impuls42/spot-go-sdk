@@ -31,10 +31,12 @@ type AssignedServer struct {
 	State           string `json:"state" yaml:"state"`
 }
 
+// SpotNodePoolList represents a list of spot node pools
 type SpotNodePoolList struct {
 	Items []SpotNodePool `json:"spotNodepools" yaml:"spotNodepools"`
 }
 
+// SpotNodePool represents a spot node pool configuration
 type SpotNodePool struct {
 	Name              string            `json:"name" yaml:"name"`
 	CreationTimestamp time.Time         `json:"creationTimestamp,omitempty" yaml:"creationTimestamp,omitempty"`
@@ -45,7 +47,7 @@ type SpotNodePool struct {
 	WonCount          int               `json:"wonCount,omitempty" yaml:"wonCount,omitempty"`
 	CustomAnnotations map[string]string `json:"customAnnotations,omitempty" yaml:"customAnnotations,omitempty"`
 	CustomLabels      map[string]string `json:"customLabels,omitempty" yaml:"customLabels,omitempty"`
-	CustomTaints      map[string]string `json:"customTaints,omitempty" yaml:"customTaints,omitempty"`
+	CustomTaints      []interface{}     `json:"customTaints,omitempty" yaml:"customTaints,omitempty"`
 	Autoscaling       struct {
 		Enabled  bool  `json:"enabled" yaml:"enabled"`
 		MinNodes int64 `json:"minNodes" yaml:"minNodes"`
@@ -55,10 +57,12 @@ type SpotNodePool struct {
 	Status   string `json:"status,omitempty" yaml:"status,omitempty"`
 }
 
+// OnDemandNodePoolList represents a list of on-demand node pools
 type OnDemandNodePoolList struct {
 	Items []OnDemandNodePool `json:"ondemandNodepools" yaml:"ondemandNodepools"`
 }
 
+// OnDemandNodePool represents an on-demand node pool configuration
 type OnDemandNodePool struct {
 	Name                 string            `json:"name" yaml:"name"`
 	CreationTimestamp    time.Time         `json:"creationTimestamp,omitempty" yaml:"creationTimestamp,omitempty"`
@@ -69,8 +73,8 @@ type OnDemandNodePool struct {
 	WonCount             int               `json:"wonCount,omitempty" yaml:"wonCount,omitempty"`
 	CustomAnnotations    map[string]string `json:"customAnnotations,omitempty" yaml:"customAnnotations,omitempty"`
 	CustomLabels         map[string]string `json:"customLabels,omitempty" yaml:"customLabels,omitempty"`
+	CustomTaints         []interface{}     `json:"customTaints,omitempty" yaml:"customTaints,omitempty"`
 	OnDemandPricePerHour string            `json:"onDemandPricePerHour,omitempty" yaml:"onDemandPricePerHour,omitempty"`
-	CustomTaints         map[string]string `json:"customTaints,omitempty" yaml:"customTaints,omitempty"`
 	Autoscaling          struct {
 		Enabled  bool `json:"enabled" yaml:"enabled"`
 		MinNodes int  `json:"minNodes" yaml:"minNodes"`

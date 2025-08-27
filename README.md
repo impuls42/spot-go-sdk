@@ -21,21 +21,22 @@ This package provides an idiomatic Go SDK for interacting with the Rackspace Spo
 4. Example CLI tool
 5. Tests and documentation
 
-## Getting Started
+
+## Installation
 
 ### 1. Install the SDK
 
 Clone this repository and use Go modules to import the SDK in your project:
 
 ```sh
-git clone https://github.com/rackerlabs/spot-sdk.git
-cd spot-sdk/rxtspot
+git clone https://github.com/rackerlabs/spot-go-sdk.git
+cd spot-go-sdk/rxtspot
 ```
 
 Or add to your Go project:
 
 ```go
-import v1 "github.com/rackerlabs/spot-sdk/rxtspot/api/v1"
+import v1 "github.com/rackerlabs/spot-go-sdk/rxtspot/api/v1"
 ```
 
 ### 2. Authentication
@@ -57,7 +58,7 @@ import (
     "context"
     "fmt"
     "os"
-    v1 "github.com/rackerlabs/spot-sdk/rxtspot/api/v1"
+    v1 "github.com/rackerlabs/spot-go-sdk/rxtspot/api/v1"
 )
 
 func main() {

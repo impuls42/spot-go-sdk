@@ -89,15 +89,13 @@ func (c *RackspaceSpotClient) CreateCloudspace(ctx context.Context, cs CloudSpac
 		APIVersion: "ngpc.rxt.io/v1",
 		Kind:       "CloudSpace",
 		Metadata: struct {
-			Name        string `json:"name"`
-			Namespace   string `json:"namespace"`
-			Annotations struct {
-			} `json:"annotations"`
+			Name        string            `json:"name"`
+			Namespace   string            `json:"namespace"`
+			Annotations map[string]string `json:"annotations"`
 		}{
-			Name:      cs.Name,
-			Namespace: orgID,
-			Annotations: struct {
-			}{},
+			Name:        cs.Name,
+			Namespace:   orgID,
+			Annotations: map[string]string{},
 		},
 		Spec: struct {
 			DeploymentType    string `json:"deploymentType"`

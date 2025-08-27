@@ -44,6 +44,9 @@ func (c *RackspaceSpotClient) ListSpotNodePools(ctx context.Context, org, clouds
 		finalList = append(finalList, &SpotNodePool{
 			Name:              item.Metadata.Name,
 			CreationTimestamp: item.Metadata.CreationTimestamp,
+			CustomAnnotations: item.Spec.CustomAnnotations,
+			CustomLabels:      item.Spec.CustomLabels,
+			CustomTaints:      item.Spec.CustomTaints,
 			Org:               org,
 			Cloudspace:        item.Spec.CloudSpace,
 			ServerClass:       item.Spec.ServerClass,
@@ -81,35 +84,37 @@ func (c *RackspaceSpotClient) CreateSpotNodePool(ctx context.Context, org string
 		APIVersion: "ngpc.rxt.io/v1",
 		Kind:       "SpotNodePool",
 		Metadata: struct {
-			Name      string `json:"name"`
-			Namespace string `json:"namespace"`
-			Labels    struct {
-				NgpcRxtIoCloudspace string `json:"ngpc.rxt.io/cloudspace"`
-			} `json:"labels"`
+			Name      string            `json:"name"`
+			Namespace string            `json:"namespace"`
+			Labels    map[string]string `json:"labels"`
 		}{
 			Name:      pool.Name,
 			Namespace: orgID,
-			Labels: struct {
-				NgpcRxtIoCloudspace string `json:"ngpc.rxt.io/cloudspace"`
-			}{
-				NgpcRxtIoCloudspace: pool.Cloudspace,
+			Labels: map[string]string{
+				"ngpc.rxt.io/cloudspace": pool.Cloudspace,
 			},
 		},
 		Spec: struct {
-			ServerClass string `json:"serverClass"`
-			Desired     int    `json:"desired"`
-			BidPrice    string `json:"bidPrice"`
-			CloudSpace  string `json:"cloudSpace"`
-			Autoscaling struct {
+			ServerClass       string            `json:"serverClass"`
+			Desired           int               `json:"desired"`
+			BidPrice          string            `json:"bidPrice"`
+			CloudSpace        string            `json:"cloudSpace"`
+			CustomAnnotations map[string]string `json:"customAnnotations,omitempty"`
+			CustomLabels      map[string]string `json:"customLabels,omitempty"`
+			CustomTaints      []interface{}     `json:"customTaints,omitempty"`
+			Autoscaling       struct {
 				Enabled  bool  `json:"enabled"`
 				MinNodes int64 `json:"minNodes"`
 				MaxNodes int64 `json:"maxNodes"`
 			} `json:"autoscaling"`
 		}{
-			ServerClass: pool.ServerClass,
-			Desired:     pool.Desired,
-			BidPrice:    pool.BidPrice,
-			CloudSpace:  pool.Cloudspace,
+			ServerClass:       pool.ServerClass,
+			Desired:           pool.Desired,
+			BidPrice:          pool.BidPrice,
+			CloudSpace:        pool.Cloudspace,
+			CustomAnnotations: pool.CustomAnnotations,
+			CustomLabels:      pool.CustomLabels,
+			CustomTaints:      pool.CustomTaints,
 			Autoscaling: struct {
 				Enabled  bool  `json:"enabled"`
 				MinNodes int64 `json:"minNodes"`
@@ -157,9 +162,12 @@ func (c *RackspaceSpotClient) UpdateSpotNodePool(ctx context.Context, org string
 	// Only include mutable fields in the update request
 	updateBody := struct {
 		Spec struct {
-			Desired     int    `json:"desired,omitempty"`
-			BidPrice    string `json:"bidPrice,omitempty"`
-			Autoscaling struct {
+			Desired           int               `json:"desired,omitempty"`
+			BidPrice          string            `json:"bidPrice,omitempty"`
+			CustomAnnotations map[string]string `json:"customAnnotations,omitempty"`
+			CustomLabels      map[string]string `json:"customLabels,omitempty"`
+			CustomTaints      []interface{}     `json:"customTaints,omitempty"`
+			Autoscaling       struct {
 				Enabled  bool  `json:"enabled"`
 				MinNodes int64 `json:"minNodes,omitempty"`
 				MaxNodes int64 `json:"maxNodes,omitempty"`
@@ -167,16 +175,22 @@ func (c *RackspaceSpotClient) UpdateSpotNodePool(ctx context.Context, org string
 		} `json:"spec"`
 	}{
 		Spec: struct {
-			Desired     int    `json:"desired,omitempty"`
-			BidPrice    string `json:"bidPrice,omitempty"`
-			Autoscaling struct {
+			Desired           int               `json:"desired,omitempty"`
+			BidPrice          string            `json:"bidPrice,omitempty"`
+			CustomAnnotations map[string]string `json:"customAnnotations,omitempty"`
+			CustomLabels      map[string]string `json:"customLabels,omitempty"`
+			CustomTaints      []interface{}     `json:"customTaints,omitempty"`
+			Autoscaling       struct {
 				Enabled  bool  `json:"enabled"`
 				MinNodes int64 `json:"minNodes,omitempty"`
 				MaxNodes int64 `json:"maxNodes,omitempty"`
 			} `json:"autoscaling"`
 		}{
-			Desired:  pool.Desired,
-			BidPrice: pool.BidPrice,
+			Desired:           pool.Desired,
+			BidPrice:          pool.BidPrice,
+			CustomAnnotations: pool.CustomAnnotations,
+			CustomLabels:      pool.CustomLabels,
+			CustomTaints:      pool.CustomTaints,
 			Autoscaling: struct {
 				Enabled  bool  `json:"enabled"`
 				MinNodes int64 `json:"minNodes,omitempty"`
@@ -245,7 +259,7 @@ func (c *RackspaceSpotClient) GetSpotNodePool(ctx context.Context, org, name str
 	}
 
 	labels := interm.Metadata.Labels
-	cloudspaceName := labels.NgpcRxtIoCloudspace
+	cloudspaceName := labels["ngpc.rxt.io/cloudspace"]
 
 	return &SpotNodePool{
 		Name:              interm.Metadata.Name,
@@ -253,6 +267,9 @@ func (c *RackspaceSpotClient) GetSpotNodePool(ctx context.Context, org, name str
 		Org:               org,
 		Cloudspace:        cloudspaceName,
 		ServerClass:       interm.Spec.ServerClass,
+		CustomAnnotations: interm.Spec.CustomAnnotations,
+		CustomLabels:      interm.Spec.CustomLabels,
+		CustomTaints:      interm.Spec.CustomTaints,
 		Desired:           interm.Spec.Desired,
 		BidPrice:          "$" + interm.Spec.BidPrice,
 		WonCount:          interm.Status.WonCount,

@@ -50,6 +50,9 @@ func (c *RackspaceSpotClient) ListOnDemandNodePools(ctx context.Context, org, cl
 		finalList = append(finalList, &OnDemandNodePool{
 			Name:                 item.Metadata.Name,
 			CreationTimestamp:    item.Metadata.CreationTimestamp,
+			CustomAnnotations:    item.Spec.CustomAnnotations,
+			CustomLabels:         item.Spec.CustomLabels,
+			CustomTaints:         item.Spec.CustomTaints,
 			Org:                  org,
 			Cloudspace:           item.Spec.CloudSpace,
 			ServerClass:          item.Spec.ServerClass,
@@ -84,33 +87,35 @@ func (c *RackspaceSpotClient) CreateOnDemandNodePool(ctx context.Context, org st
 		APIVersion: "ngpc.rxt.io/v1",
 		Kind:       "OnDemandNodePool",
 		Metadata: struct {
-			Name      string `json:"name"`
-			Namespace string `json:"namespace"`
-			Labels    struct {
-				NgpcRxtIoCloudspace string `json:"ngpc.rxt.io/cloudspace"`
-			} `json:"labels"`
+			Name      string            `json:"name"`
+			Namespace string            `json:"namespace"`
+			Labels    map[string]string `json:"labels"`
 		}{
 			Name:      pool.Name,
 			Namespace: orgID,
-			Labels: struct {
-				NgpcRxtIoCloudspace string `json:"ngpc.rxt.io/cloudspace"`
-			}{
-				NgpcRxtIoCloudspace: pool.Cloudspace,
+			Labels: map[string]string{
+				"ngpc.rxt.io/cloudspace": pool.Cloudspace,
 			},
 		},
 		Spec: struct {
-			ServerClass string `json:"serverClass"`
-			Desired     int    `json:"desired"`
-			CloudSpace  string `json:"cloudSpace"`
-			Autoscaling struct {
+			ServerClass       string            `json:"serverClass"`
+			Desired           int               `json:"desired"`
+			CloudSpace        string            `json:"cloudSpace"`
+			CustomAnnotations map[string]string `json:"customAnnotations,omitempty"`
+			CustomLabels      map[string]string `json:"customLabels,omitempty"`
+			CustomTaints      []interface{}     `json:"customTaints,omitempty"`
+			Autoscaling       struct {
 				Enabled  bool `json:"enabled"`
 				MinNodes any  `json:"minNodes"`
 				MaxNodes any  `json:"maxNodes"`
 			} `json:"autoscaling"`
 		}{
-			ServerClass: pool.ServerClass,
-			Desired:     pool.Desired,
-			CloudSpace:  pool.Cloudspace,
+			ServerClass:       pool.ServerClass,
+			Desired:           pool.Desired,
+			CloudSpace:        pool.Cloudspace,
+			CustomAnnotations: pool.CustomAnnotations,
+			CustomLabels:      pool.CustomLabels,
+			CustomTaints:      pool.CustomTaints,
 			Autoscaling: struct {
 				Enabled  bool `json:"enabled"`
 				MinNodes any  `json:"minNodes"`
@@ -187,11 +192,14 @@ func (c *RackspaceSpotClient) GetOnDemandNodePool(ctx context.Context, org, name
 	}
 
 	labels := interm.Metadata.Labels
-	cloudspaceName := labels.NgpcRxtIoCloudspace
+	cloudspaceName := labels["ngpc.rxt.io/cloudspace"]
 
 	return &OnDemandNodePool{
 		Name:                 interm.Metadata.Name,
 		CreationTimestamp:    interm.Metadata.CreationTimestamp,
+		CustomAnnotations:    interm.Spec.CustomAnnotations,
+		CustomLabels:         interm.Spec.CustomLabels,
+		CustomTaints:         interm.Spec.CustomTaints,
 		Org:                  org,
 		Cloudspace:           cloudspaceName,
 		ServerClass:          interm.Spec.ServerClass,
@@ -226,8 +234,11 @@ func (c *RackspaceSpotClient) UpdateOnDemandNodePool(ctx context.Context, org st
 	// Only include mutable fields in the update request
 	updateBody := struct {
 		Spec struct {
-			Desired     int `json:"desired,omitempty"`
-			Autoscaling struct {
+			Desired           int               `json:"desired,omitempty"`
+			CustomAnnotations map[string]string `json:"customAnnotations,omitempty"`
+			CustomLabels      map[string]string `json:"customLabels,omitempty"`
+			CustomTaints      []interface{}     `json:"customTaints,omitempty"`
+			Autoscaling       struct {
 				Enabled  bool  `json:"enabled"`
 				MinNodes int64 `json:"minNodes,omitempty"`
 				MaxNodes int64 `json:"maxNodes,omitempty"`
@@ -235,14 +246,20 @@ func (c *RackspaceSpotClient) UpdateOnDemandNodePool(ctx context.Context, org st
 		} `json:"spec"`
 	}{
 		Spec: struct {
-			Desired     int `json:"desired,omitempty"`
-			Autoscaling struct {
+			Desired           int               `json:"desired,omitempty"`
+			CustomAnnotations map[string]string `json:"customAnnotations,omitempty"`
+			CustomLabels      map[string]string `json:"customLabels,omitempty"`
+			CustomTaints      []interface{}     `json:"customTaints,omitempty"`
+			Autoscaling       struct {
 				Enabled  bool  `json:"enabled"`
 				MinNodes int64 `json:"minNodes,omitempty"`
 				MaxNodes int64 `json:"maxNodes,omitempty"`
 			} `json:"autoscaling"`
 		}{
-			Desired: pool.Desired,
+			Desired:           pool.Desired,
+			CustomAnnotations: pool.CustomAnnotations,
+			CustomLabels:      pool.CustomLabels,
+			CustomTaints:      pool.CustomTaints,
 			Autoscaling: struct {
 				Enabled  bool  `json:"enabled"`
 				MinNodes int64 `json:"minNodes,omitempty"`

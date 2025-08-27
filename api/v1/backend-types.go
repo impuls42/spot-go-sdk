@@ -36,15 +36,10 @@ type SpotNodePoolGetResponse struct {
 	APIVersion string `json:"apiVersion"`
 	Kind       string `json:"kind"`
 	Metadata   struct {
-		CreationTimestamp time.Time `json:"creationTimestamp"`
-		Labels            struct {
-			NgpcRxtIoCloudspace   string `json:"ngpc.rxt.io/cloudspace"`
-			NgpcRxtIoCloudspaceID string `json:"ngpc.rxt.io/cloudspaceID"`
-			NgpcRxtIoOrganization string `json:"ngpc.rxt.io/organization"`
-			ServerclassNgpcRxtIo  string `json:"serverclass.ngpc.rxt.io"`
-		} `json:"labels"`
-		Name      string `json:"name"`
-		Namespace string `json:"namespace"`
+		CreationTimestamp time.Time         `json:"creationTimestamp"`
+		Labels            map[string]string `json:"labels"`
+		Name              string            `json:"name"`
+		Namespace         string            `json:"namespace"`
 	} `json:"metadata"`
 	Spec struct {
 		Autoscaling struct {
@@ -52,15 +47,13 @@ type SpotNodePoolGetResponse struct {
 			MaxNodes int  `json:"maxNodes"`
 			MinNodes int  `json:"minNodes"`
 		} `json:"autoscaling"`
-		BidPrice          string `json:"bidPrice"`
-		CloudSpace        string `json:"cloudSpace"`
-		CustomAnnotations struct {
-		} `json:"customAnnotations"`
-		CustomLabels struct {
-		} `json:"customLabels"`
-		CustomTaints []any  `json:"customTaints"`
-		Desired      int    `json:"desired"`
-		ServerClass  string `json:"serverClass"`
+		BidPrice          string            `json:"bidPrice"`
+		CloudSpace        string            `json:"cloudSpace"`
+		CustomAnnotations map[string]string `json:"customAnnotations"`
+		CustomLabels      map[string]string `json:"customLabels"`
+		CustomTaints      []interface{}     `json:"customTaints,omitempty"`
+		Desired           int               `json:"desired"`
+		ServerClass       string            `json:"serverClass"`
 	} `json:"spec"`
 	Status struct {
 		BidStatus            string `json:"bidStatus"`
@@ -84,10 +77,9 @@ type CloudSpaceCreateRequestBody struct {
 	APIVersion string `json:"apiVersion"`
 	Kind       string `json:"kind"`
 	Metadata   struct {
-		Name        string `json:"name"`
-		Namespace   string `json:"namespace"`
-		Annotations struct {
-		} `json:"annotations"`
+		Name        string            `json:"name"`
+		Namespace   string            `json:"namespace"`
+		Annotations map[string]string `json:"annotations"`
 	} `json:"metadata"`
 	Spec struct {
 		DeploymentType    string `json:"deploymentType"`
@@ -105,18 +97,19 @@ type SpotNodePoolRequestBody struct {
 	APIVersion string `json:"apiVersion"`
 	Kind       string `json:"kind"`
 	Metadata   struct {
-		Name      string `json:"name"`
-		Namespace string `json:"namespace"`
-		Labels    struct {
-			NgpcRxtIoCloudspace string `json:"ngpc.rxt.io/cloudspace"`
-		} `json:"labels"`
+		Name      string            `json:"name"`
+		Namespace string            `json:"namespace"`
+		Labels    map[string]string `json:"labels"`
 	} `json:"metadata"`
 	Spec struct {
-		ServerClass string `json:"serverClass"`
-		Desired     int    `json:"desired"`
-		BidPrice    string `json:"bidPrice"`
-		CloudSpace  string `json:"cloudSpace"`
-		Autoscaling struct {
+		ServerClass       string            `json:"serverClass"`
+		Desired           int               `json:"desired"`
+		BidPrice          string            `json:"bidPrice"`
+		CloudSpace        string            `json:"cloudSpace"`
+		CustomAnnotations map[string]string `json:"customAnnotations,omitempty"`
+		CustomLabels      map[string]string `json:"customLabels,omitempty"`
+		CustomTaints      []interface{}     `json:"customTaints,omitempty"`
+		Autoscaling       struct {
 			Enabled  bool  `json:"enabled"`
 			MinNodes int64 `json:"minNodes"`
 			MaxNodes int64 `json:"maxNodes"`
@@ -138,9 +131,10 @@ type SpotNodePoolListResponse struct {
 		APIVersion string `json:"apiVersion"`
 		Kind       string `json:"kind"`
 		Metadata   struct {
-			CreationTimestamp time.Time `json:"creationTimestamp"`
-			Name              string    `json:"name"`
-			Namespace         string    `json:"namespace"`
+			CreationTimestamp time.Time         `json:"creationTimestamp"`
+			Name              string            `json:"name"`
+			Namespace         string            `json:"namespace"`
+			Labels            map[string]string `json:"labels"`
 		} `json:"metadata"`
 		Spec struct {
 			Autoscaling struct {
@@ -148,15 +142,13 @@ type SpotNodePoolListResponse struct {
 				MaxNodes int  `json:"maxNodes"`
 				MinNodes int  `json:"minNodes"`
 			} `json:"autoscaling"`
-			BidPrice          string `json:"bidPrice"`
-			CloudSpace        string `json:"cloudSpace"`
-			CustomAnnotations struct {
-			} `json:"customAnnotations"`
-			CustomLabels struct {
-			} `json:"customLabels"`
-			CustomTaints []any  `json:"customTaints"`
-			Desired      int    `json:"desired"`
-			ServerClass  string `json:"serverClass"`
+			BidPrice          string            `json:"bidPrice"`
+			CloudSpace        string            `json:"cloudSpace"`
+			CustomAnnotations map[string]string `json:"customAnnotations,omitempty"`
+			CustomLabels      map[string]string `json:"customLabels,omitempty"`
+			CustomTaints      []interface{}     `json:"customTaints,omitempty"`
+			Desired           int               `json:"desired"`
+			ServerClass       string            `json:"serverClass"`
 		} `json:"spec"`
 		Status struct {
 			BidStatus            string `json:"bidStatus"`
@@ -176,17 +168,18 @@ type OnDemandNodePoolCreateRequestBody struct {
 	APIVersion string `json:"apiVersion"`
 	Kind       string `json:"kind"`
 	Metadata   struct {
-		Name      string `json:"name"`
-		Namespace string `json:"namespace"`
-		Labels    struct {
-			NgpcRxtIoCloudspace string `json:"ngpc.rxt.io/cloudspace"`
-		} `json:"labels"`
+		Name      string            `json:"name"`
+		Namespace string            `json:"namespace"`
+		Labels    map[string]string `json:"labels"`
 	} `json:"metadata"`
 	Spec struct {
-		ServerClass string `json:"serverClass"`
-		Desired     int    `json:"desired"`
-		CloudSpace  string `json:"cloudSpace"`
-		Autoscaling struct {
+		ServerClass       string            `json:"serverClass"`
+		Desired           int               `json:"desired"`
+		CloudSpace        string            `json:"cloudSpace"`
+		CustomAnnotations map[string]string `json:"customAnnotations,omitempty"`
+		CustomLabels      map[string]string `json:"customLabels,omitempty"`
+		CustomTaints      []interface{}     `json:"customTaints,omitempty"`
+		Autoscaling       struct {
 			Enabled  bool `json:"enabled"`
 			MinNodes any  `json:"minNodes"`
 			MaxNodes any  `json:"maxNodes"`
@@ -198,24 +191,18 @@ type OnDemandNodePoolGetResponse struct {
 	APIVersion string `json:"apiVersion"`
 	Kind       string `json:"kind"`
 	Metadata   struct {
-		CreationTimestamp time.Time `json:"creationTimestamp"`
-		Labels            struct {
-			NgpcRxtIoCloudspace   string `json:"ngpc.rxt.io/cloudspace"`
-			NgpcRxtIoOrganization string `json:"ngpc.rxt.io/organization"`
-			ServerclassNgpcRxtIo  string `json:"serverclass.ngpc.rxt.io"`
-		} `json:"labels"`
-		Name      string `json:"name"`
-		Namespace string `json:"namespace"`
+		CreationTimestamp time.Time         `json:"creationTimestamp"`
+		Labels            map[string]string `json:"labels"`
+		Name              string            `json:"name"`
+		Namespace         string            `json:"namespace"`
 	} `json:"metadata"`
 	Spec struct {
-		CloudSpace        string `json:"cloudSpace"`
-		CustomAnnotations struct {
-		} `json:"customAnnotations"`
-		CustomLabels struct {
-		} `json:"customLabels"`
-		CustomTaints []any  `json:"customTaints"`
-		Desired      int    `json:"desired"`
-		ServerClass  string `json:"serverClass"`
+		CloudSpace        string            `json:"cloudSpace"`
+		CustomAnnotations map[string]string `json:"customAnnotations,omitempty"`
+		CustomLabels      map[string]string `json:"customLabels,omitempty"`
+		CustomTaints      []interface{}     `json:"customTaints,omitempty"`
+		Desired           int               `json:"desired"`
+		ServerClass       string            `json:"serverClass"`
 	} `json:"spec"`
 	Status struct {
 		ReservedCount  int    `json:"reservedCount"`
@@ -229,24 +216,18 @@ type OnDemandNodePoolListResponse struct {
 		APIVersion string `json:"apiVersion"`
 		Kind       string `json:"kind"`
 		Metadata   struct {
-			CreationTimestamp time.Time `json:"creationTimestamp"`
-			Labels            struct {
-				NgpcRxtIoCloudspace   string `json:"ngpc.rxt.io/cloudspace"`
-				NgpcRxtIoOrganization string `json:"ngpc.rxt.io/organization"`
-				ServerclassNgpcRxtIo  string `json:"serverclass.ngpc.rxt.io"`
-			} `json:"labels"`
-			Name      string `json:"name"`
-			Namespace string `json:"namespace"`
+			CreationTimestamp time.Time         `json:"creationTimestamp"`
+			Labels            map[string]string `json:"labels"`
+			Name              string            `json:"name"`
+			Namespace         string            `json:"namespace"`
 		} `json:"metadata"`
 		Spec struct {
-			CloudSpace        string `json:"cloudSpace"`
-			CustomAnnotations struct {
-			} `json:"customAnnotations"`
-			CustomLabels struct {
-			} `json:"customLabels"`
-			CustomTaints []any  `json:"customTaints"`
-			Desired      int    `json:"desired"`
-			ServerClass  string `json:"serverClass"`
+			CloudSpace        string            `json:"cloudSpace"`
+			CustomAnnotations map[string]string `json:"customAnnotations"`
+			CustomLabels      map[string]string `json:"customLabels"`
+			CustomTaints      []interface{}     `json:"customTaints,omitempty"`
+			Desired           int               `json:"desired"`
+			ServerClass       string            `json:"serverClass"`
 		} `json:"spec"`
 		Status struct {
 			ReservedCount  int    `json:"reservedCount"`
