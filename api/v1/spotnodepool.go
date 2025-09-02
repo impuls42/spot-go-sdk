@@ -91,43 +91,24 @@ func (c *RackspaceSpotClient) CreateSpotNodePool(ctx context.Context, org string
 	spotNodePoolCreateRequestBody := SpotNodePoolRequestBody{
 		APIVersion: "ngpc.rxt.io/v1",
 		Kind:       "SpotNodePool",
-		Metadata: struct {
-			Name      string            `json:"name"`
-			Namespace string            `json:"namespace"`
-			Labels    map[string]string `json:"labels"`
-		}{
+		Metadata: ObjectMeta{
 			Name:      pool.Name,
 			Namespace: orgID,
 			Labels: map[string]string{
 				"ngpc.rxt.io/cloudspace": pool.Cloudspace,
 			},
 		},
-		Spec: struct {
-			ServerClass       string            `json:"serverClass"`
-			Desired           int               `json:"desired"`
-			BidPrice          string            `json:"bidPrice"`
-			CloudSpace        string            `json:"cloudSpace"`
-			CustomAnnotations map[string]string `json:"customAnnotations,omitempty"`
-			CustomLabels      map[string]string `json:"customLabels,omitempty"`
-			CustomTaints      []interface{}     `json:"customTaints,omitempty"`
-			Autoscaling       struct {
-				Enabled  bool  `json:"enabled"`
-				MinNodes int64 `json:"minNodes"`
-				MaxNodes int64 `json:"maxNodes"`
-			} `json:"autoscaling"`
-		}{
-			ServerClass:       pool.ServerClass,
-			Desired:           pool.Desired,
-			BidPrice:          pool.BidPrice,
-			CloudSpace:        pool.Cloudspace,
-			CustomAnnotations: pool.CustomAnnotations,
-			CustomLabels:      pool.CustomLabels,
-			CustomTaints:      pool.CustomTaints,
-			Autoscaling: struct {
-				Enabled  bool  `json:"enabled"`
-				MinNodes int64 `json:"minNodes"`
-				MaxNodes int64 `json:"maxNodes"`
-			}{
+		Spec: SpotNodePoolSpec{
+			CommonNodePoolSpec: CommonNodePoolSpec{
+				ServerClass:       pool.ServerClass,
+				Desired:           pool.Desired,
+				CloudSpace:        pool.Cloudspace,
+				CustomAnnotations: pool.CustomAnnotations,
+				CustomLabels:      pool.CustomLabels,
+				CustomTaints:      pool.CustomTaints,
+			},
+			BidPrice: pool.BidPrice,
+			Autoscaling: AutoscalingInt64{
 				Enabled:  pool.Autoscaling.Enabled,
 				MinNodes: pool.Autoscaling.MinNodes,
 				MaxNodes: pool.Autoscaling.MaxNodes,
@@ -167,43 +148,14 @@ func (c *RackspaceSpotClient) UpdateSpotNodePool(ctx context.Context, org string
 	}
 	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/spotnodepools/%s", c.BaseURL, orgID, pool.Name)
 
-	// Only include mutable fields in the update request
-	updateBody := struct {
-		Spec struct {
-			Desired           int               `json:"desired,omitempty"`
-			BidPrice          string            `json:"bidPrice,omitempty"`
-			CustomAnnotations map[string]string `json:"customAnnotations,omitempty"`
-			CustomLabels      map[string]string `json:"customLabels,omitempty"`
-			CustomTaints      []interface{}     `json:"customTaints,omitempty"`
-			Autoscaling       struct {
-				Enabled  bool  `json:"enabled"`
-				MinNodes int64 `json:"minNodes,omitempty"`
-				MaxNodes int64 `json:"maxNodes,omitempty"`
-			} `json:"autoscaling"`
-		} `json:"spec"`
-	}{
-		Spec: struct {
-			Desired           int               `json:"desired,omitempty"`
-			BidPrice          string            `json:"bidPrice,omitempty"`
-			CustomAnnotations map[string]string `json:"customAnnotations,omitempty"`
-			CustomLabels      map[string]string `json:"customLabels,omitempty"`
-			CustomTaints      []interface{}     `json:"customTaints,omitempty"`
-			Autoscaling       struct {
-				Enabled  bool  `json:"enabled"`
-				MinNodes int64 `json:"minNodes,omitempty"`
-				MaxNodes int64 `json:"maxNodes,omitempty"`
-			} `json:"autoscaling"`
-		}{
+	updateBody := SpotNodePoolUpdateRequestBody{
+		Spec: SpotNodePoolUpdateSpec{
 			Desired:           pool.Desired,
 			BidPrice:          pool.BidPrice,
 			CustomAnnotations: pool.CustomAnnotations,
 			CustomLabels:      pool.CustomLabels,
 			CustomTaints:      pool.CustomTaints,
-			Autoscaling: struct {
-				Enabled  bool  `json:"enabled"`
-				MinNodes int64 `json:"minNodes,omitempty"`
-				MaxNodes int64 `json:"maxNodes,omitempty"`
-			}{
+			Autoscaling: AutoscalingInt64Update{
 				Enabled:  pool.Autoscaling.Enabled,
 				MinNodes: pool.Autoscaling.MinNodes,
 				MaxNodes: pool.Autoscaling.MaxNodes,

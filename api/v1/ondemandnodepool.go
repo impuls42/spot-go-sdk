@@ -93,41 +93,23 @@ func (c *RackspaceSpotClient) CreateOnDemandNodePool(ctx context.Context, org st
 	ondemandNodePoolCreateRequestBody := OnDemandNodePoolCreateRequestBody{
 		APIVersion: "ngpc.rxt.io/v1",
 		Kind:       "OnDemandNodePool",
-		Metadata: struct {
-			Name      string            `json:"name"`
-			Namespace string            `json:"namespace"`
-			Labels    map[string]string `json:"labels"`
-		}{
+		Metadata: ObjectMeta{
 			Name:      pool.Name,
 			Namespace: orgID,
 			Labels: map[string]string{
 				"ngpc.rxt.io/cloudspace": pool.Cloudspace,
 			},
 		},
-		Spec: struct {
-			ServerClass       string            `json:"serverClass"`
-			Desired           int               `json:"desired"`
-			CloudSpace        string            `json:"cloudSpace"`
-			CustomAnnotations map[string]string `json:"customAnnotations,omitempty"`
-			CustomLabels      map[string]string `json:"customLabels,omitempty"`
-			CustomTaints      []interface{}     `json:"customTaints,omitempty"`
-			Autoscaling       struct {
-				Enabled  bool `json:"enabled"`
-				MinNodes any  `json:"minNodes"`
-				MaxNodes any  `json:"maxNodes"`
-			} `json:"autoscaling"`
-		}{
-			ServerClass:       pool.ServerClass,
-			Desired:           pool.Desired,
-			CloudSpace:        pool.Cloudspace,
-			CustomAnnotations: pool.CustomAnnotations,
-			CustomLabels:      pool.CustomLabels,
-			CustomTaints:      pool.CustomTaints,
-			Autoscaling: struct {
-				Enabled  bool `json:"enabled"`
-				MinNodes any  `json:"minNodes"`
-				MaxNodes any  `json:"maxNodes"`
-			}{
+		Spec: OnDemandNodePoolSpec{
+			CommonNodePoolSpec: CommonNodePoolSpec{
+				ServerClass:       pool.ServerClass,
+				Desired:           pool.Desired,
+				CloudSpace:        pool.Cloudspace,
+				CustomAnnotations: pool.CustomAnnotations,
+				CustomLabels:      pool.CustomLabels,
+				CustomTaints:      pool.CustomTaints,
+			},
+			Autoscaling: AutoscalingAny{
 				Enabled:  pool.Autoscaling.Enabled,
 				MinNodes: pool.Autoscaling.MinNodes,
 				MaxNodes: pool.Autoscaling.MaxNodes,
@@ -238,46 +220,20 @@ func (c *RackspaceSpotClient) UpdateOnDemandNodePool(ctx context.Context, org st
 	}
 	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/ondemandnodepools/%s", c.BaseURL, orgID, pool.Name)
 
-	// Only include mutable fields in the update request
-	updateBody := struct {
-		Spec struct {
-			Desired           int               `json:"desired,omitempty"`
-			CustomAnnotations map[string]string `json:"customAnnotations,omitempty"`
-			CustomLabels      map[string]string `json:"customLabels,omitempty"`
-			CustomTaints      []interface{}     `json:"customTaints,omitempty"`
-			Autoscaling       struct {
-				Enabled  bool  `json:"enabled"`
-				MinNodes int64 `json:"minNodes,omitempty"`
-				MaxNodes int64 `json:"maxNodes,omitempty"`
-			} `json:"autoscaling"`
-		} `json:"spec"`
-	}{
-		Spec: struct {
-			Desired           int               `json:"desired,omitempty"`
-			CustomAnnotations map[string]string `json:"customAnnotations,omitempty"`
-			CustomLabels      map[string]string `json:"customLabels,omitempty"`
-			CustomTaints      []interface{}     `json:"customTaints,omitempty"`
-			Autoscaling       struct {
-				Enabled  bool  `json:"enabled"`
-				MinNodes int64 `json:"minNodes,omitempty"`
-				MaxNodes int64 `json:"maxNodes,omitempty"`
-			} `json:"autoscaling"`
-		}{
-			Desired:           pool.Desired,
-			CustomAnnotations: pool.CustomAnnotations,
-			CustomLabels:      pool.CustomLabels,
-			CustomTaints:      pool.CustomTaints,
-			Autoscaling: struct {
-				Enabled  bool  `json:"enabled"`
-				MinNodes int64 `json:"minNodes,omitempty"`
-				MaxNodes int64 `json:"maxNodes,omitempty"`
-			}{
-				Enabled:  pool.Autoscaling.Enabled,
-				MinNodes: int64(pool.Autoscaling.MinNodes),
-				MaxNodes: int64(pool.Autoscaling.MaxNodes),
-			},
-		},
-	}
+    // Only include mutable fields in the update request
+    updateBody := OnDemandNodePoolUpdateRequestBody{
+        Spec: OnDemandNodePoolUpdateSpec{
+            Desired:           pool.Desired,
+            CustomAnnotations: pool.CustomAnnotations,
+            CustomLabels:      pool.CustomLabels,
+            CustomTaints:      pool.CustomTaints,
+            Autoscaling: AutoscalingInt64Update{
+                Enabled:  pool.Autoscaling.Enabled,
+                MinNodes: int64(pool.Autoscaling.MinNodes),
+                MaxNodes: int64(pool.Autoscaling.MaxNodes),
+            },
+        },
+    }
 
 	body, err := json.Marshal(updateBody)
 	if err != nil {
