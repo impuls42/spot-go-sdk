@@ -42,9 +42,10 @@ func isTokenExpired(tokenString string) bool {
 		return true // Invalid claims, consider it expired
 	}
 
-	// Check if token is expired (with 60 second leeway for clock skew)
-	now := time.Now().Unix()
-	return claims.Exp < now-60
+	// Check if token is expired with a 60s early-expiry leeway for clock skew.
+	// Treat the token as expired if current time is after (exp - 60s).
+	expTime := time.Unix(claims.Exp, 0)
+	return time.Now().After(expTime.Add(-60 * time.Second))
 }
 
 func GetClientID() string {
