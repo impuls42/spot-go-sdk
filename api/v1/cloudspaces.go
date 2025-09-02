@@ -13,7 +13,7 @@ func (c *RackspaceSpotClient) ListCloudspaces(ctx context.Context, org string) (
 		return nil, fmt.Errorf("invalid organization name: %w", err)
 	}
 
-	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
+	exists, orgID, err := c.getOrgIDIFExists(ctx, org)
 	if err != nil {
 		return nil, c.handleAPIError(err, "organization", org, "find")
 	}
@@ -77,7 +77,7 @@ func (c *RackspaceSpotClient) CreateCloudspace(ctx context.Context, cs CloudSpac
 		return fmt.Errorf("kubernetes version is required")
 	}
 
-	exists, orgID, err := c.getOrgIDIfExists(ctx, cs.Org)
+	exists, orgID, err := c.getOrgIDIFExists(ctx, cs.Org)
 	if err != nil {
 		return c.handleAPIError(err, "organization", cs.Org, "find")
 	}
@@ -139,7 +139,7 @@ func (c *RackspaceSpotClient) DeleteCloudspace(ctx context.Context, org, name st
 		return fmt.Errorf("invalid cloudspace name: %w", err)
 	}
 
-	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
+	exists, orgID, err := c.getOrgIDIFExists(ctx, org)
 	if err != nil {
 		return c.handleAPIError(err, "organization", org, "find")
 	}
@@ -161,7 +161,7 @@ func (c *RackspaceSpotClient) GetCloudspace(ctx context.Context, org, name strin
 		return nil, fmt.Errorf("invalid cloudspace name: %w", err)
 	}
 
-	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
+	exists, orgID, err := c.getOrgIDIFExists(ctx, org)
 	if err != nil {
 		return nil, err
 	}

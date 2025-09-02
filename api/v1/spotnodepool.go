@@ -17,7 +17,7 @@ func (c *RackspaceSpotClient) ListSpotNodePools(ctx context.Context, org, clouds
 		return nil, fmt.Errorf("invalid cloudspace name: %w", err)
 	}
 
-	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
+	exists, orgID, err := c.getOrgIDIFExists(ctx, org)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (c *RackspaceSpotClient) CreateSpotNodePool(ctx context.Context, org string
 		return fmt.Errorf("invalid server class: %w", err)
 	}
 
-	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
+	exists, orgID, err := c.getOrgIDIFExists(ctx, org)
 	if err != nil {
 		return err
 	}
@@ -158,7 +158,7 @@ func (c *RackspaceSpotClient) UpdateSpotNodePool(ctx context.Context, org string
 		}
 	}
 
-	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
+	exists, orgID, err := c.getOrgIDIFExists(ctx, org)
 	if err != nil {
 		return err
 	}
@@ -230,7 +230,7 @@ func (c *RackspaceSpotClient) DeleteSpotNodePool(ctx context.Context, org, name 
 		return fmt.Errorf("invalid node pool name: %w", err)
 	}
 
-	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
+	exists, orgID, err := c.getOrgIDIFExists(ctx, org)
 	if err != nil {
 		return c.handleAPIError(err, "organization", org, "find")
 	}
@@ -252,7 +252,7 @@ func (c *RackspaceSpotClient) GetSpotNodePool(ctx context.Context, org, name str
 		return nil, fmt.Errorf("invalid node pool name: %w", err)
 	}
 
-	exists, orgID, err := c.getOrgIDIfExists(ctx, org)
+	exists, orgID, err := c.getOrgIDIFExists(ctx, org)
 	if err != nil {
 		return nil, err
 	}
