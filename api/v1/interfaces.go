@@ -5,7 +5,6 @@ import "context"
 // OrganizationAPI defines organization-related methods.
 type OrganizationAPI interface {
 	ListOrganizations(ctx context.Context) ([]Organization, error)
-	DeleteOrganization(ctx context.Context, orgName string) error
 }
 
 // CloudspaceAPI defines cloudspace-related methods.

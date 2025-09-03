@@ -49,7 +49,11 @@ func isTokenExpired(tokenString string) bool {
 }
 
 func GetClientID() string {
-	return os.Getenv("RXTSPOT_CLIENT_ID")
+	clientID := os.Getenv("RXTSPOT_CLIENT_ID")
+	if clientID == "" {
+		clientID = "mwG3lUMV8KyeMqHe4fJ5Bb3nM1vBvRNa"
+	}
+	return clientID
 }
 
 // Authenticate authenticates with the Rackspace Spot API using the provided credentials.

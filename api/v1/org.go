@@ -24,23 +24,6 @@ func (c *RackspaceSpotClient) ListOrganizations(ctx context.Context) ([]Organiza
 	return response.Organizations, nil
 }
 
-func (c *RackspaceSpotClient) DeleteOrganization(ctx context.Context, orgName string) error {
-	if err := ValidateOrgName(orgName); err != nil {
-		return fmt.Errorf("invalid organization name: %w", err)
-	}
-	exists, orgID, err := c.getOrgIDIFExistsWithoutNormalizing(ctx, orgName)
-	if err != nil {
-		return c.handleAPIError(err, "organization", orgName, "find")
-	}
-	if !exists {
-		return fmt.Errorf("organization '%s' not found", orgName)
-	}
-	url := fmt.Sprintf("%s/apis/auth.ngpc.rxt.io/v1/organizations/%s", c.BaseURL, orgID) // Correct URL
-	fmt.Printf("url: %s\n", url)
-	err = c.doRequest(ctx, http.MethodDelete, url, nil, c.authHeader(), nil)
-	return c.handleAPIError(err, "organization", orgName, "delete")
-}
-
 func (c *RackspaceSpotClient) getOrgIDIFExists(ctx context.Context, orgName string) (bool, string, error) {
 	url := fmt.Sprintf("%s/apis/auth.ngpc.rxt.io/v1/organizations", c.BaseURL) // Correct URL
 
