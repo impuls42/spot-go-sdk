@@ -1,1 +1,0 @@
-# Spot-Go-SDK
