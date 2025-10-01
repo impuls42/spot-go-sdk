@@ -27,6 +27,8 @@ type ServerClassPricingDetails struct {
 	Description  string  `json:"description"`
 }
 
+var PriceDetailsURL = GetPriceDetailsURL()
+
 // GetPriceDetails retrieves the price details for a server class.
 func (c *RackspaceSpotClient) GetPriceDetails(ctx context.Context) ([]*PriceDetails, error) {
 
