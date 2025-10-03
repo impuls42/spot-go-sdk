@@ -98,7 +98,7 @@ func (c *RackspaceSpotClient) GetServerClass(ctx context.Context, name string) (
 	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &interm); err != nil {
 		return nil, c.handleAPIError(err, "server class", name, "get")
 	}
-	marketPrice, err := c.GetMarketPriceForServerClass(ctx, name)
+	marketPrice, err := c.GetMarketPriceForServerClass(ctx, interm.Metadata.Name)
 	if err != nil {
 		return nil, err
 	}
