@@ -7,8 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
-	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/url"
@@ -16,26 +14,32 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/klog/v2"
+	"github.com/cenkalti/backoff/v5"
+	"github.com/kelseyhightower/envconfig"
 )
 
+type RetryConfig struct {
+	MaxRetries   int           `envconfig:"RXTSPOT_MAX_RETRIES" default:"3"`
+	RetryWaitMax time.Duration `envconfig:"RXTSPOT_RETRY_WAIT_MAX" default:"30s"`
+	RetryWaitMin time.Duration `envconfig:"RXTSPOT_RETRY_WAIT_MIN" default:"1s"`
+}
+
+// Config holds the configuration for the Rackspace Spot API client
 // Config holds the configuration for the Rackspace Spot API client
 type Config struct {
-	BaseURL      string
-	OAuthURL     string
-	AccessToken  string
-	RefreshToken string
-	HTTPClient   *http.Client // Optional custom HTTP client
-	
+	BaseURL      string       `envconfig:"RXTSPOT_BASE_URL" default:"https://spot.rackspace.com"`
+	OAuthURL     string       `envconfig:"RXTSPOT_OAUTH_URL" default:"https://login.spot.rackspace.com"`
+	AccessToken  string       `envconfig:"RXTSPOT_ACCESS_TOKEN"`
+	RefreshToken string       `envconfig:"RXTSPOT_REFRESH_TOKEN"`
+	HTTPClient   *http.Client `ignored:"true"` // Custom HTTP client (not configurable via env)
+
 	// Retry configuration
-	MaxRetries   int           // Maximum number of retries (default: 3)
-	RetryWaitMin time.Duration // Minimum time between retries (default: 1s)
-	RetryWaitMax time.Duration // Maximum time between retries (default: 30s)
+	RetryConfig RetryConfig `envconfig:"RXTSPOT_RETRY_CONFIG"`
 
 	// HTTP client configuration
-	RequestTimeout  time.Duration // Overall request timeout (default: 30s)
-	IdleConnTimeout time.Duration // Maximum idle connection timeout (default: 90s)
-	MaxIdleConns    int           // Maximum idle connections across all hosts (default: 100)
+	RequestTimeout  time.Duration `envconfig:"RXTSPOT_REQUEST_TIMEOUT" default:"30s"`
+	IdleConnTimeout time.Duration `envconfig:"RXTSPOT_IDLE_CONN_TIMEOUT" default:"90s"`
+	MaxIdleConns    int           `envconfig:"RXTSPOT_MAX_IDLE_CONNS" default:"100"`
 }
 
 type RackspaceSpotClient struct {
@@ -44,10 +48,9 @@ type RackspaceSpotClient struct {
 	HTTPClient   *http.Client
 	Token        string
 	RefreshToken string
-	// New fields for retry and timeout
-	MaxRetries      int           // Maximum number of retries (default: 3)
-	RetryWaitMin    time.Duration // Minimum time to wait between retries (default: 1s)
-	RetryWaitMax    time.Duration // Maximum time to wait between retries (default: 30s)
+	// Retry configuration
+	RetryConfig RetryConfig
+
 	RequestTimeout  time.Duration // Timeout for each HTTP request (default: 30s)
 	IdleConnTimeout time.Duration // Maximum idle connection timeout (default: 90s)
 }
@@ -57,57 +60,39 @@ type HTTPStatusError struct {
 	Body       string
 }
 
-// NewSpotClient creates a new Rackspace Spot API client with secure defaults
+// NewSpotClient creates a new Rackspace Spot API client with secure defaults.
+// Configuration is loaded in the following order:
+// 1. Values provided in the config parameter
+// 2. Environment variables (with RXTSPOT_ prefix)
+// 3. Default values (for fields with default tags)
 func NewSpotClient(cfg *Config) (*RackspaceSpotClient, error) {
+	// Process environment variables if config is nil
 	if cfg == nil {
-		return nil, fmt.Errorf("config is required")
+		cfg = &Config{}
 	}
+
+	// Load configuration from environment variables
+	if err := envconfig.Process("", cfg); err != nil {
+		return nil, fmt.Errorf("failed to process environment config: %w", err)
+	}
+
 	if cfg.BaseURL == "" {
-		return nil, fmt.Errorf("base URL is required")
-	}
-	// Set default values if not provided
-	if cfg.MaxRetries == 0 {
-		cfg.MaxRetries = 3
-	}
-	if cfg.RetryWaitMin == 0 {
-		cfg.RetryWaitMin = time.Second
-	}
-	if cfg.RetryWaitMax == 0 {
-		cfg.RetryWaitMax = 30 * time.Second
-	}
-	if cfg.RequestTimeout == 0 {
-		cfg.RequestTimeout = 30 * time.Second
-	}
-	if cfg.IdleConnTimeout == 0 {
-		cfg.IdleConnTimeout = 90 * time.Second
+		return nil, fmt.Errorf("base URL is required (set RXTSPOT_BASE_URL)")
 	}
 
-	// Set default values if not provided
-	if cfg.MaxIdleConns == 0 {
-		cfg.MaxIdleConns = 100
-	}
-
-	// Clone the default transport and override specific settings
+	// Set up HTTP transport
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.IdleConnTimeout = cfg.IdleConnTimeout
 	transport.MaxIdleConns = cfg.MaxIdleConns
 
-	// Set dial timeout to match request timeout
+	// Configure dialer with timeout
 	dialer := &net.Dialer{
 		Timeout:   cfg.RequestTimeout,
 		KeepAlive: 30 * time.Second,
 	}
 	transport.DialContext = dialer.DialContext
 
-	// Create the HTTP client with timeouts
-	if cfg.HTTPClient == nil {
-		cfg.HTTPClient = &http.Client{
-			Transport: transport,
-			Timeout:   cfg.RequestTimeout,
-		}
-	}
-
-	// Create HTTP client if not provided
+	// Create or configure HTTP client
 	client := cfg.HTTPClient
 	if client == nil {
 		client = &http.Client{
@@ -117,14 +102,14 @@ func NewSpotClient(cfg *Config) (*RackspaceSpotClient, error) {
 	}
 
 	return &RackspaceSpotClient{
-		BaseURL:      cfg.BaseURL,
-		OAuthURL:     cfg.OAuthURL,
-		HTTPClient:   client,
-		Token:        cfg.AccessToken,
-		RefreshToken: cfg.RefreshToken,
-		MaxRetries:   cfg.MaxRetries,
-		RetryWaitMin: cfg.RetryWaitMin,
-		RetryWaitMax: cfg.RetryWaitMax,
+		BaseURL:         cfg.BaseURL,
+		OAuthURL:        cfg.OAuthURL,
+		HTTPClient:      client,
+		Token:           cfg.AccessToken,
+		RefreshToken:    cfg.RefreshToken,
+		RetryConfig:     cfg.RetryConfig,
+		RequestTimeout:  cfg.RequestTimeout,
+		IdleConnTimeout: cfg.IdleConnTimeout,
 	}, nil
 }
 
@@ -219,30 +204,6 @@ func validateURL(urlStr string) error {
 	return nil
 }
 
-// calculateBackoff calculates the backoff duration using exponential backoff with jitter
-func (c *RackspaceSpotClient) calculateBackoff(attempt int) time.Duration {
-	// Calculate exponential backoff
-	min := float64(c.RetryWaitMin)
-	max := float64(c.RetryWaitMax)
-
-	// Exponential backoff with jitter
-	backoff := min * math.Pow(2, float64(attempt))
-	if backoff > max {
-		backoff = max
-	}
-
-	// Add jitter
-	jitter := 0.2 * backoff * (rand.Float64()*2 - 1) // ±20% jitter
-	backoff += jitter
-
-	// Ensure we don't exceed max wait time
-	if backoff > max {
-		backoff = max
-	}
-
-	return time.Duration(backoff)
-}
-
 // doRequest performs an HTTP request with the given method, URL, body, and headers.
 // It handles authentication, rate limiting, and error handling.
 func (c *RackspaceSpotClient) doRequest(ctx context.Context, method, url string, body []byte, headers map[string]string, out interface{}) error {
@@ -250,119 +211,56 @@ func (c *RackspaceSpotClient) doRequest(ctx context.Context, method, url string,
 		return err
 	}
 
-	var lastErr error
-
-	// create a new request for every new attempt
-	for attempt := 1; attempt <= c.MaxRetries; attempt++ {
+	operation := func() (string, error) {
 		req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
 		if err != nil {
-			klog.Errorf("doRequest: failed to create request: %v", err)
-			return err
+			return "", backoff.Permanent(fmt.Errorf("failed to create request: %w", err))
 		}
 
-		// Add headers
-		for key, value := range headers {
-			req.Header.Set(key, value)
+		for k, v := range headers {
+			req.Header.Set(k, v)
 		}
 		if method == http.MethodPatch {
 			req.Header.Set("Content-Type", "application/merge-patch+json")
 		}
 
-		klog.V(1).Infof("[%s] %s (attempt %d/%d)", method, url, attempt, c.MaxRetries)
-
-		// Calculate backoff once per attempt
-		backoff := c.calculateBackoff(attempt)
-
-		// Perform HTTP request
-		start := time.Now()
 		resp, err := c.HTTPClient.Do(req)
-		duration := time.Since(start)
-
-		// Handle request errors
 		if err != nil {
-			lastErr = fmt.Errorf("HTTP request failed after %v: %w", duration, err)
-			klog.Warningf("Request failed (attempt %d/%d): %v", attempt, c.MaxRetries, lastErr)
-
-			if attempt < c.MaxRetries {
-				klog.Warningf("Retrying in %v...", backoff)
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case <-time.After(backoff):
-					continue
-				}
-			}
-			return lastErr
+			// retryable error
+			return "", fmt.Errorf("http request failed: %w", err)
 		}
-
-			// Handle response
-		if resp == nil {
-			lastErr = fmt.Errorf("received nil response from server")
-			if attempt < c.MaxRetries {
-				klog.Warningf("Retrying in %v...", backoff)
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case <-time.After(backoff):
-					continue
-				}
-			}
-			return lastErr
-		}
-
 		defer resp.Body.Close()
 
-		// Log request completion
-		klog.V(2).Infof("Request completed in %v with status: %d %s",
-			duration, resp.StatusCode, http.StatusText(resp.StatusCode))
-
-		// Handle successful response (2xx)
-		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-			if out != nil {
-				if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
-					return fmt.Errorf("failed to decode response: %w", err)
-				}
-				klog.V(4).Infof("Decoded object: %+v", out)
-			}
-			return nil
-		}
-
-		// Read response body for error cases
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return fmt.Errorf("failed to read error response: %w", err)
-		}
-
-		// For 4xx errors, don't retry - return the error immediately
+		// Treat 4xx as permanent errors (no retry)
 		if resp.StatusCode >= 400 && resp.StatusCode < 500 {
-			return &HTTPStatusError{
+			bodyBytes, _ := io.ReadAll(resp.Body)
+			return "", backoff.Permanent(&HTTPStatusError{
 				StatusCode: resp.StatusCode,
-				Body:       string(body),
+				Body:       string(bodyBytes),
+			})
+		}
+
+		// Treat 5xx as retryable errors
+		if resp.StatusCode >= 500 {
+			bodyBytes, _ := io.ReadAll(resp.Body)
+			return "", fmt.Errorf("server error: %d %s", resp.StatusCode, string(bodyBytes))
+		}
+
+		// Success case
+		if out != nil {
+			if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+				return "", backoff.Permanent(fmt.Errorf("failed to decode response: %w", err))
 			}
 		}
-
-		// For 5xx errors, retry if we have attempts left
-		lastErr = &HTTPStatusError{
-			StatusCode: resp.StatusCode,
-			Body:       string(body),
-		}
-
-		if attempt < c.MaxRetries {
-			klog.Warningf("Server error (attempt %d/%d), retrying in %v: %v",
-				attempt, c.MaxRetries, backoff, lastErr)
-
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(backoff):
-				continue
-			}
-		}
-
-		return fmt.Errorf("request failed after %d attempts: %w", c.MaxRetries, lastErr)
+		return "", nil
 	}
 
-	return lastErr
+	_, err := backoff.Retry(ctx, operation, backoff.WithMaxTries(uint(c.RetryConfig.MaxRetries)), backoff.WithMaxElapsedTime(time.Duration(c.RetryConfig.RetryWaitMax)))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // isAlphanumeric returns true if the rune is an ASCII letter or digit
