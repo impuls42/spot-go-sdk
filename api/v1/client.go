@@ -19,27 +19,29 @@ import (
 )
 
 type RetryConfig struct {
-	MaxRetries   int           `envconfig:"RXTSPOT_MAX_RETRIES" default:"3"`
-	RetryWaitMax time.Duration `envconfig:"RXTSPOT_RETRY_WAIT_MAX" default:"30s"`
-	RetryWaitMin time.Duration `envconfig:"RXTSPOT_RETRY_WAIT_MIN" default:"1s"`
+	MaxRetries          int           `envconfig:"SPOT_MAX_RETRIES" default:"10"`
+	RetryWaitMax        time.Duration `envconfig:"SPOT_RETRY_WAIT_MAX" default:"600s"`            // The maximum wait time between retries.
+	RandomizationFactor float64       `envconfig:"SPOT_RETRY_RANDOMIZATION_FACTOR" default:"0.5"` // A value used to introduce randomness (jitter) into the wait time.
+	Multiplier          float64       `envconfig:"SPOT_RETRY_MULTIPLIER" default:"2"`             // The factor by which the wait time increases after each retry
+	InitialInterval     time.Duration `envconfig:"SPOT_RETRY_INITIAL_INTERVAL" default:"1s"`      // The initial wait time before the first retry
 }
 
 // Config holds the configuration for the Rackspace Spot API client
 // Config holds the configuration for the Rackspace Spot API client
 type Config struct {
-	BaseURL      string       `envconfig:"RXTSPOT_BASE_URL" default:"https://spot.rackspace.com"`
-	OAuthURL     string       `envconfig:"RXTSPOT_OAUTH_URL" default:"https://login.spot.rackspace.com"`
-	AccessToken  string       `envconfig:"RXTSPOT_ACCESS_TOKEN"`
-	RefreshToken string       `envconfig:"RXTSPOT_REFRESH_TOKEN"`
+	BaseURL      string       `envconfig:"SPOT_BASE_URL" default:"https://spot.rackspace.com"`
+	OAuthURL     string       `envconfig:"SPOT_AUTH_URL" default:"https://login.spot.rackspace.com"`
+	AccessToken  string       `envconfig:"SPOT_ACCESS_TOKEN"`
+	RefreshToken string       `envconfig:"SPOT_REFRESH_TOKEN"`
 	HTTPClient   *http.Client `ignored:"true"` // Custom HTTP client (not configurable via env)
 
 	// Retry configuration
 	RetryConfig RetryConfig `envconfig:"RXTSPOT_RETRY_CONFIG"`
 
 	// HTTP client configuration
-	RequestTimeout  time.Duration `envconfig:"RXTSPOT_REQUEST_TIMEOUT" default:"30s"`
-	IdleConnTimeout time.Duration `envconfig:"RXTSPOT_IDLE_CONN_TIMEOUT" default:"90s"`
-	MaxIdleConns    int           `envconfig:"RXTSPOT_MAX_IDLE_CONNS" default:"100"`
+	RequestTimeout  time.Duration `envconfig:"SPOT_REQUEST_TIMEOUT" default:"30s"`
+	IdleConnTimeout time.Duration `envconfig:"SPOT_IDLE_CONN_TIMEOUT" default:"90s"`
+	MaxIdleConns    int           `envconfig:"SPOT_MAX_IDLE_CONNS" default:"100"`
 }
 
 type RackspaceSpotClient struct {
@@ -254,8 +256,13 @@ func (c *RackspaceSpotClient) doRequest(ctx context.Context, method, url string,
 		}
 		return "", nil
 	}
+	exponentialBackOff := backoff.NewExponentialBackOff()
+	exponentialBackOff.InitialInterval = time.Duration(c.RetryConfig.InitialInterval)
+	exponentialBackOff.RandomizationFactor = c.RetryConfig.RandomizationFactor
+	exponentialBackOff.Multiplier = c.RetryConfig.Multiplier
+	exponentialBackOff.MaxInterval = time.Duration(c.RetryConfig.RetryWaitMax)
 
-	_, err := backoff.Retry(ctx, operation, backoff.WithMaxTries(uint(c.RetryConfig.MaxRetries)), backoff.WithMaxElapsedTime(time.Duration(c.RetryConfig.RetryWaitMax)))
+	_, err := backoff.Retry(ctx, operation, backoff.WithMaxTries(uint(c.RetryConfig.MaxRetries)), backoff.WithMaxElapsedTime(time.Duration(c.RetryConfig.RetryWaitMax)), backoff.WithBackOff(exponentialBackOff))
 	if err != nil {
 		return err
 	}
