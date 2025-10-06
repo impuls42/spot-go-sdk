@@ -36,7 +36,7 @@ func main() {
 func createCloudspace(ctx context.Context, spotClient *v1.RackspaceSpotClient) {
 	spotNodePool := v1.SpotNodePool{
 		Name:        "sdk-spot-nodepool",
-		Org:         "hooli",
+		Org:         "test-sdk-org",
 		Cloudspace:  "sdk-cloudspace",
 		ServerClass: "ch.vs1.large-dfw",
 		Desired:     1,
@@ -50,7 +50,7 @@ func createCloudspace(ctx context.Context, spotClient *v1.RackspaceSpotClient) {
 	}
 	err := spotClient.CreateCloudspace(ctx, v1.CloudSpace{
 		Name:              "sdk-cloudspace",
-		Org:               "hooli",
+		Org:               "test-sdk-org",
 		KubernetesVersion: "1.31.1",
 		CNI:               "calico",
 		Region:            "us-east-iad-1",
@@ -63,7 +63,7 @@ func createCloudspace(ctx context.Context, spotClient *v1.RackspaceSpotClient) {
 	}
 	fmt.Println("Successfully created cloudspace")
 	time.Sleep(time.Second * 10)
-	cloudspace, err := spotClient.GetCloudspace(ctx, "hooli", "sdk-cloudspace")
+	cloudspace, err := spotClient.GetCloudspace(ctx, "test-sdk-org", "sdk-cloudspace")
 	if err != nil {
 		log.Fatalf("Failed to get cloudspace: %v", err)
 	}
