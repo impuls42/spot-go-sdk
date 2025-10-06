@@ -14,27 +14,17 @@ import (
 func main() {
 	// Initialize spot client
 
-	//	os.Setenv("RXTSPOT_CLIENT_ID", "BSQn6mv3OhI3jxQj0cvaZAUW4FBvLctu")
-	//	os.Setenv("RXTSPOT_BASE_URL", "https://ngpc-staging-4.platform9.horse")
-	//	os.Setenv("RXTSPOT_OAUTH_URL", "https://login.ngpc-staging-4.platform9.horse")
-
 	spotClient, err := v1.NewSpotClient(&v1.Config{
-		//	RefreshToken: "gTLEWRNYgwI3qNMLCgPC9vaL_S0n9MeZZy4spo5sj0djr",
-		RefreshToken: "2gO6yrPR7tekw24tal1wBg-b3LWX9lDSOWSMxUJai5HHU",
+		RefreshToken: "<YOUR_REFRESH-TOKEN>",
 	})
-	fmt.Printf("spotClient: %+v\n", spotClient)
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
 	}
-	token, err := spotClient.Authenticate(context.Background())
-	fmt.Printf("token: %s\n", token)
+	_, err = spotClient.Authenticate(context.Background())
 	if err != nil {
 		fmt.Println(err.Error())
 		log.Fatalf("Failed to authenticate: %v", err)
 	}
-	fmt.Printf("token: %s\n", token)
-
-	fmt.Printf("spotClient: %+v\n", spotClient)
 
 	ctx := context.Background()
 	listRegions(ctx, spotClient)
