@@ -1,0 +1,97 @@
+// examples/cloudspace/main.go
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"time"
+
+	v1 "github.com/rackspace-spot/spot-go-sdk/api/v1"
+)
+
+func main() {
+	// Initialize spot client
+
+	//	os.Setenv("RXTSPOT_CLIENT_ID", "BSQn6mv3OhI3jxQj0cvaZAUW4FBvLctu")
+	//	os.Setenv("RXTSPOT_BASE_URL", "https://ngpc-staging-4.platform9.horse")
+	//	os.Setenv("RXTSPOT_OAUTH_URL", "https://login.ngpc-staging-4.platform9.horse")
+
+	spotClient, err := v1.NewSpotClient(&v1.Config{
+		//	RefreshToken: "gTLEWRNYgwI3qNMLCgPC9vaL_S0n9MeZZy4spo5sj0djr",
+		RefreshToken: "2gO6yrPR7tekw24tal1wBg-b3LWX9lDSOWSMxUJai5HHU",
+	})
+	fmt.Printf("spotClient: %+v\n", spotClient)
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
+	token, err := spotClient.Authenticate(context.Background())
+	fmt.Printf("token: %s\n", token)
+	if err != nil {
+		fmt.Println(err.Error())
+		log.Fatalf("Failed to authenticate: %v", err)
+	}
+	fmt.Printf("token: %s\n", token)
+
+	fmt.Printf("spotClient: %+v\n", spotClient)
+
+	ctx := context.Background()
+	listRegions(ctx, spotClient)
+
+	fmt.Println("Let's Create a cloudspace using SDK...")
+	createCloudspace(ctx, spotClient)
+}
+
+func createCloudspace(ctx context.Context, spotClient *v1.RackspaceSpotClient) {
+	spotNodePool := v1.SpotNodePool{
+		Name:        "sdk-spot-nodepool",
+		Org:         "hooli",
+		Cloudspace:  "sdk-cloudspace",
+		ServerClass: "ch.vs1.large-dfw",
+		Desired:     1,
+		CustomAnnotations: map[string]string{
+			"example.com/annotation": "value",
+		},
+		CustomLabels: map[string]string{
+			"example.com/label": "value",
+		},
+		BidPrice: "$0.08",
+	}
+	err := spotClient.CreateCloudspace(ctx, v1.CloudSpace{
+		Name:              "sdk-cloudspace",
+		Org:               "hooli",
+		KubernetesVersion: "1.31.1",
+		CNI:               "calico",
+		Region:            "us-east-iad-1",
+		SpotNodepools: []*v1.SpotNodePool{
+			&spotNodePool,
+		},
+	})
+	if err != nil {
+		log.Fatalf("Failed to create cloudspace: %v", err)
+	}
+	fmt.Println("Successfully created cloudspace")
+	time.Sleep(time.Second * 10)
+	cloudspace, err := spotClient.GetCloudspace(ctx, "hooli", "sdk-cloudspace")
+	if err != nil {
+		log.Fatalf("Failed to get cloudspace: %v", err)
+	}
+	cloudspaceJSON, err := json.Marshal(cloudspace)
+	if err != nil {
+		log.Fatalf("Failed to marshal cloudspace: %v", err)
+	}
+	fmt.Printf("cloudspace: %s\n", cloudspaceJSON)
+}
+
+func listRegions(ctx context.Context, spotClient *v1.RackspaceSpotClient) {
+	regions, err := spotClient.ListRegions(ctx)
+	if err != nil {
+		log.Fatalf("Failed to list regions: %v", err)
+	}
+
+	fmt.Println("Regions:")
+	for _, region := range regions {
+		fmt.Printf("- %s (%s)\n", region.Name, region.Name)
+	}
+}
