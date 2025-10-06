@@ -3,7 +3,6 @@ package rxtspot
 import (
 	"context"
 	"fmt"
-	"net/http"
 )
 
 type ServerData struct {
@@ -31,23 +30,21 @@ var PriceDetailsURL = GetPriceDetailsURL()
 
 // GetPriceDetails retrieves the price details for a server class.
 func (c *RackspaceSpotClient) GetPriceDetails(ctx context.Context) ([]*PriceDetails, error) {
-
-	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/serverclasses", c.BaseURL)
-	var interm ListServerClassesResponse
-	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &interm); err != nil {
-		return nil, c.handleAPIError(err, "server class", "", "list")
+	serverClasses, err := c.ListServerClasses(ctx, "")
+	if err != nil {
+		return nil, err
 	}
 	var completePriceDetails []*PriceDetails
 
-	for _, item := range interm.Items {
+	for _, item := range serverClasses.Items {
 		completePriceDetails = append(completePriceDetails, &PriceDetails{
-			ServerClassName: item.Metadata.Name,
-			Region:          item.Spec.Region,
-			MarketPrice:     "$" + item.Status.SpotPricing.MarketPricePerHour,
-			CPU:             item.Spec.Resources.CPU,
-			Memory:          item.Spec.Resources.Memory,
-			DisplayName:     item.Spec.DisplayName,
-			Category:        item.Spec.Category,
+			ServerClassName: item.Name,
+			Region:          item.Region,
+			MarketPrice:     "$" + item.CurrentMarketPricePerHour,
+			CPU:             item.Resources.CPU,
+			Memory:          item.Resources.Memory,
+			DisplayName:     item.Displayname,
+			Category:        item.Category,
 		})
 	}
 
@@ -55,73 +52,64 @@ func (c *RackspaceSpotClient) GetPriceDetails(ctx context.Context) ([]*PriceDeta
 }
 
 func (c *RackspaceSpotClient) GetPriceDetailsForServerClass(ctx context.Context, serverClassName string) (*PriceDetails, error) {
-
-	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/serverclasses", c.BaseURL)
-	var interm ListServerClassesResponse
-	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &interm); err != nil {
-		return nil, c.handleAPIError(err, "server class", "", "list")
+	serverClass, err := c.GetServerClass(ctx, serverClassName)
+	if err != nil {
+		return nil, err
 	}
-	var priceDetails PriceDetails
-
-	for _, item := range interm.Items {
-		if item.Metadata.Name == serverClassName {
-			priceDetails = PriceDetails{
-				ServerClassName: item.Metadata.Name,
-				Region:          item.Spec.Region,
-				MarketPrice:     "$" + item.Status.SpotPricing.MarketPricePerHour,
-				CPU:             item.Spec.Resources.CPU,
-				Memory:          item.Spec.Resources.Memory,
-				DisplayName:     item.Spec.DisplayName,
-				Category:        item.Spec.Category,
-			}
-			return &priceDetails, nil
-		}
+	fmt.Printf("serverClass - %+v \n", serverClass)
+	priceDetails := PriceDetails{
+		ServerClassName: serverClass.Name,
+		Region:          serverClass.Region,
+		MarketPrice:     serverClass.CurrentMarketPricePerHour,
+		CPU:             serverClass.Resources.CPU,
+		Memory:          serverClass.Resources.Memory,
+		DisplayName:     serverClass.Displayname,
+		Category:        serverClass.Category,
 	}
-	return nil, fmt.Errorf("server class '%s' not found", serverClassName)
+	return &priceDetails, nil
+
 }
 
 func (c *RackspaceSpotClient) GetPriceDetailsForRegion(ctx context.Context, regionName string) (*PriceDetails, error) {
-	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/serverclasses", c.BaseURL)
-	var interm ListServerClassesResponse
-	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &interm); err != nil {
-		return nil, c.handleAPIError(err, "server class", "", "list")
+	serverClassess, err := c.ListServerClasses(ctx, regionName)
+	if err != nil {
+		return nil, err
 	}
+
 	var priceDetails PriceDetails
 
-	for _, item := range interm.Items {
-		if item.Spec.Region == regionName {
+	for _, item := range serverClassess.Items {
+		if item.Region == regionName {
 			priceDetails = PriceDetails{
-				ServerClassName: item.Metadata.Name,
+				ServerClassName: item.Name,
 				Region:          regionName,
-				MarketPrice:     "$" + item.Status.SpotPricing.MarketPricePerHour,
-				CPU:             item.Spec.Resources.CPU,
-				Memory:          item.Spec.Resources.Memory,
-				DisplayName:     item.Spec.DisplayName,
-				Category:        item.Spec.Category,
+				MarketPrice:     "$" + item.CurrentMarketPricePerHour,
+				CPU:             item.Resources.CPU,
+				Memory:          item.Resources.Memory,
+				DisplayName:     item.Displayname,
+				Category:        item.Category,
 			}
 		}
 	}
 	return &priceDetails, nil
 }
 
-func (c *RackspaceSpotClient) GetMarketPriceForServerClass(ctx context.Context, serverClassName string) (string, error) {
+func (c *RackspaceSpotClient) GetMarketPriceForServerClass(ctx context.Context, serverClassStatus *ServerClassStatus) string {
 	marketPricePerHour := "N/A"
 
-	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/serverclasses", c.BaseURL)
-	var interm ListServerClassesResponse
-	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &interm); err != nil {
-		return "", c.handleAPIError(err, "server class", "", "list")
+	if serverClassStatus != nil {
+		marketPricePerHour = "$" + serverClassStatus.SpotPricing.MarketPricePerHour
+
 	}
-	for _, item := range interm.Items {
-		if item.Metadata.Name == serverClassName {
-			marketPricePerHour = "$" + item.Status.SpotPricing.MarketPricePerHour
-			return marketPricePerHour, nil
-		}
-	}
-	return "", fmt.Errorf("server class '%s' not found", serverClassName)
+	return marketPricePerHour
 }
 
-func (c *RackspaceSpotClient) GetMinimumBidPriceForServerClass(ctx context.Context, serverClass string) (string, error) {
-	ServerClassDetails, _ := c.GetServerClass(ctx, serverClass)
-	return ServerClassDetails.MinBidPricePerHour, nil
+func (c *RackspaceSpotClient) GetMinimumBidPriceForServerClass(ctx context.Context, serverClass *ServerClassSpec) string {
+	var minBidPrice = "N/A"
+
+	if serverClass != nil {
+		minBidPrice = "$" + serverClass.MinBidPricePerHour
+
+	}
+	return minBidPrice
 }

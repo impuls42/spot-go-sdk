@@ -28,10 +28,8 @@ func (c *RackspaceSpotClient) ListServerClasses(ctx context.Context, region stri
 	if region != "" {
 		for _, item := range interm.Items {
 			if item.Spec.Region == region {
-				marketPrice, err := c.GetMarketPriceForServerClass(ctx, item.Metadata.Name)
-				if err != nil {
-					// If market price is not found, set to "N/A" and continue
-					marketPrice = "N/A"
+				marketPrice := c.GetMarketPriceForServerClass(ctx, &item.Status)
+				if marketPrice == "N/A" {
 					continue
 				}
 				if item.Spec.Availability != "available" {
@@ -60,10 +58,8 @@ func (c *RackspaceSpotClient) ListServerClasses(ctx context.Context, region stri
 	}
 
 	for _, item := range interm.Items {
-		marketPrice, err := c.GetMarketPriceForServerClass(ctx, item.Metadata.Name)
-		if err != nil {
-			// If market price is not found, set to "N/A" and continue
-			marketPrice = "N/A"
+		marketPrice := c.GetMarketPriceForServerClass(ctx, &item.Status)
+		if marketPrice == "N/A" {
 			continue
 		}
 		if item.Spec.Availability != "available" {
@@ -98,10 +94,7 @@ func (c *RackspaceSpotClient) GetServerClass(ctx context.Context, name string) (
 	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &interm); err != nil {
 		return nil, c.handleAPIError(err, "server class", name, "get")
 	}
-	marketPrice, err := c.GetMarketPriceForServerClass(ctx, interm.Metadata.Name)
-	if err != nil {
-		return nil, err
-	}
+	marketPrice := c.GetMarketPriceForServerClass(ctx, &interm.Status)
 	minBidPrice, onDemandPrice := GetMinBidPriceAndOnDemandPrice(interm.Spec)
 
 	serverclass := ServerClass{
