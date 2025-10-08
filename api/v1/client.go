@@ -302,6 +302,20 @@ func isValidHostname(hostname string) bool {
 			}
 
 			// First and last character must be alphanumeric
+			/*
+							i == 0 - Checks if it's the first character of the label
+				i == len(label)-1 - Checks if it's the last character of the label
+				!isAlphanumeric(r) - Verifies the character is NOT alphanumeric (not a letter or number)
+
+				This ensures that the first and last characters of each label in a hostname must be alphanumeric.
+
+				For example:
+
+				Valid: example.com (starts and ends with letters)
+				Invalid: -example.com (starts with a hyphen)
+				Invalid: example-.com (ends with a hyphen)
+				This is a standard rule in hostname validation, as per RFC 1123.
+			*/
 			if (i == 0 || i == len(label)-1) && !isAlphanumeric(r) {
 				return false
 			}
