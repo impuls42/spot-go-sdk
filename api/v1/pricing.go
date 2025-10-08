@@ -2,7 +2,6 @@ package rxtspot
 
 import (
 	"context"
-	"fmt"
 )
 
 type ServerData struct {
@@ -40,14 +39,13 @@ func (c *RackspaceSpotClient) GetPriceDetails(ctx context.Context) ([]*PriceDeta
 		completePriceDetails = append(completePriceDetails, &PriceDetails{
 			ServerClassName: item.Name,
 			Region:          item.Region,
-			MarketPrice:     "$" + item.CurrentMarketPricePerHour,
+			MarketPrice:     item.CurrentMarketPricePerHour,
 			CPU:             item.Resources.CPU,
 			Memory:          item.Resources.Memory,
 			DisplayName:     item.Displayname,
 			Category:        item.Category,
 		})
 	}
-
 	return completePriceDetails, nil
 }
 
@@ -56,7 +54,6 @@ func (c *RackspaceSpotClient) GetPriceDetailsForServerClass(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("serverClass - %+v \n", serverClass)
 	priceDetails := PriceDetails{
 		ServerClassName: serverClass.Name,
 		Region:          serverClass.Region,
@@ -83,7 +80,7 @@ func (c *RackspaceSpotClient) GetPriceDetailsForRegion(ctx context.Context, regi
 			priceDetails = PriceDetails{
 				ServerClassName: item.Name,
 				Region:          regionName,
-				MarketPrice:     "$" + item.CurrentMarketPricePerHour,
+				MarketPrice:     item.CurrentMarketPricePerHour,
 				CPU:             item.Resources.CPU,
 				Memory:          item.Resources.Memory,
 				DisplayName:     item.Displayname,

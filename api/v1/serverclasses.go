@@ -100,6 +100,7 @@ func (c *RackspaceSpotClient) GetServerClass(ctx context.Context, name string) (
 	serverclass := ServerClass{
 		Availability:              interm.Spec.Availability,
 		Name:                      interm.Metadata.Name,
+		Displayname:               interm.Spec.DisplayName,
 		Category:                  interm.Spec.Category,
 		Region:                    interm.Spec.Region,
 		MinBidPricePerHour:        minBidPrice,
