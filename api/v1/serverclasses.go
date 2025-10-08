@@ -28,10 +28,16 @@ func (c *RackspaceSpotClient) ListServerClasses(ctx context.Context, region stri
 	if region != "" {
 		for _, item := range interm.Items {
 			if item.Spec.Region == region {
-				marketPrice, err := c.GetMarketPriceForServerClass(ctx, item.Metadata.Name)
-				if err != nil {
-					// If market price is not found, set to "N/A" and continue
-					marketPrice = "N/A"
+				marketPrice := c.GetMarketPriceForServerClass(ctx, &item.Status)
+				if marketPrice == "N/A" {
+					continue
+				}
+				if item.Spec.Availability != "available" {
+					continue
+				}
+				minBidPrice, onDemandPrice := GetMinBidPriceAndOnDemandPrice(item.Spec)
+				if minBidPrice == "N/A" || onDemandPrice == "N/A" {
+					continue
 				}
 				serverclasses = append(serverclasses, ServerClass{
 					Availability:              item.Spec.Availability,
@@ -39,8 +45,8 @@ func (c *RackspaceSpotClient) ListServerClasses(ctx context.Context, region stri
 					Category:                  item.Spec.Category,
 					Region:                    item.Spec.Region,
 					CurrentMarketPricePerHour: marketPrice,
-					MinBidPricePerHour:        "$" + item.Spec.MinBidPricePerHour,
-					OnDemandPricePerHour:      "$" + item.Spec.OnDemandPricing.Cost,
+					MinBidPricePerHour:        minBidPrice,
+					OnDemandPricePerHour:      onDemandPrice,
 					Resources: Resource{
 						CPU:    item.Spec.Resources.CPU,
 						Memory: item.Spec.Resources.Memory,
@@ -52,10 +58,16 @@ func (c *RackspaceSpotClient) ListServerClasses(ctx context.Context, region stri
 	}
 
 	for _, item := range interm.Items {
-		marketPrice, err := c.GetMarketPriceForServerClass(ctx, item.Metadata.Name)
-		if err != nil {
-			// If market price is not found, set to "N/A" and continue
-			marketPrice = "N/A"
+		marketPrice := c.GetMarketPriceForServerClass(ctx, &item.Status)
+		if marketPrice == "N/A" {
+			continue
+		}
+		if item.Spec.Availability != "available" {
+			continue
+		}
+		minBidPrice, onDemandPrice := GetMinBidPriceAndOnDemandPrice(item.Spec)
+		if minBidPrice == "N/A" || onDemandPrice == "N/A" {
+			continue
 		}
 		serverclasses = append(serverclasses, ServerClass{
 			Availability:              item.Spec.Availability,
@@ -63,8 +75,8 @@ func (c *RackspaceSpotClient) ListServerClasses(ctx context.Context, region stri
 			Category:                  item.Spec.Category,
 			Region:                    item.Spec.Region,
 			CurrentMarketPricePerHour: marketPrice,
-			MinBidPricePerHour:        "$" + item.Spec.MinBidPricePerHour,
-			OnDemandPricePerHour:      "$" + item.Spec.OnDemandPricing.Cost,
+			MinBidPricePerHour:        minBidPrice,
+			OnDemandPricePerHour:      onDemandPrice,
 			Resources: Resource{
 				CPU:    item.Spec.Resources.CPU,
 				Memory: item.Spec.Resources.Memory,
@@ -82,23 +94,34 @@ func (c *RackspaceSpotClient) GetServerClass(ctx context.Context, name string) (
 	if err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &interm); err != nil {
 		return nil, c.handleAPIError(err, "server class", name, "get")
 	}
-	marketPrice, err := c.GetMarketPriceForServerClass(ctx, name)
-	if err != nil {
-		return nil, err
-	}
+	marketPrice := c.GetMarketPriceForServerClass(ctx, &interm.Status)
+	minBidPrice, onDemandPrice := GetMinBidPriceAndOnDemandPrice(interm.Spec)
 
 	serverclass := ServerClass{
 		Availability:              interm.Spec.Availability,
 		Name:                      interm.Metadata.Name,
+		Displayname:               interm.Spec.DisplayName,
 		Category:                  interm.Spec.Category,
 		Region:                    interm.Spec.Region,
-		MinBidPricePerHour:        "$" + interm.Spec.MinBidPricePerHour,
+		MinBidPricePerHour:        minBidPrice,
 		CurrentMarketPricePerHour: marketPrice,
-		OnDemandPricePerHour:      "$" + interm.Spec.OnDemandPricing.Cost,
+		OnDemandPricePerHour:      onDemandPrice,
 		Resources: Resource{
 			CPU:    interm.Spec.Resources.CPU,
 			Memory: interm.Spec.Resources.Memory,
 		},
 	}
 	return &serverclass, nil
+}
+
+func GetMinBidPriceAndOnDemandPrice(spec ServerClassSpec) (string, string) {
+	minBidPrice := "N/A"
+	if spec.MinBidPricePerHour != "" {
+		minBidPrice = "$" + spec.MinBidPricePerHour
+	}
+	onDemandPrice := "N/A"
+	if spec.OnDemandPricing.Cost != "" {
+		onDemandPrice = "$" + spec.OnDemandPricing.Cost
+	}
+	return minBidPrice, onDemandPrice
 }
