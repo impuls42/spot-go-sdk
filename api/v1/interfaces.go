@@ -50,8 +50,8 @@ type SpotPricingAPI interface {
 	GetPriceDetailsForServerClass(ctx context.Context, serverClass string) (*PriceDetails, error)
 	GetPriceDetails(ctx context.Context) ([]*PriceDetails, error)
 	GetPriceDetailsForRegion(ctx context.Context, region string) (*PriceDetails, error)
-	GetMarketPriceForServerClass(ctx context.Context, serverClass string) (string, error)
-	GetMinimumBidPriceForServerClass(ctx context.Context, serverClass string) (string, error)
+	GetMarketPriceForServerClass(ctx context.Context, serverClassStatus *ServerClassStatus) string
+	GetMinimumBidPriceForServerClass(ctx context.Context, serverClassSpec *ServerClassSpec) string
 }
 
 // SpotAPI defines the complete interface for the Rackspace Spot SDK client.

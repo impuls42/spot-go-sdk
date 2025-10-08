@@ -2,8 +2,6 @@ package rxtspot
 
 import (
 	"context"
-	"fmt"
-	"net/http"
 )
 
 type ServerData struct {
@@ -27,102 +25,88 @@ type ServerClassPricingDetails struct {
 	Description  string  `json:"description"`
 }
 
+var PriceDetailsURL = GetPriceDetailsURL()
+
 // GetPriceDetails retrieves the price details for a server class.
 func (c *RackspaceSpotClient) GetPriceDetails(ctx context.Context) ([]*PriceDetails, error) {
-
-	var serverData ServerData
-	if err := c.doRequest(ctx, http.MethodGet, PriceDetailsURL, nil, nil, &serverData); err != nil {
-		return nil, c.handleAPIError(err, "server class", "", "get price details")
+	serverClasses, err := c.ListServerClasses(ctx, "")
+	if err != nil {
+		return nil, err
 	}
 	var completePriceDetails []*PriceDetails
 
-	for region, details := range serverData.Regions {
-		for serverClassName, pricingDetails := range details.ServerClasses {
-			completePriceDetails = append(completePriceDetails, &PriceDetails{
-				ServerClassName: serverClassName,
-				Region:          region,
-				MarketPrice:     "$" + pricingDetails.MarketPrice,
-				CPU:             pricingDetails.CPU,
-				Memory:          pricingDetails.Memory,
-				DisplayName:     pricingDetails.DisplayName,
-				Category:        pricingDetails.Category,
-			})
-		}
+	for _, item := range serverClasses.Items {
+		completePriceDetails = append(completePriceDetails, &PriceDetails{
+			ServerClassName: item.Name,
+			Region:          item.Region,
+			MarketPrice:     item.CurrentMarketPricePerHour,
+			CPU:             item.Resources.CPU,
+			Memory:          item.Resources.Memory,
+			DisplayName:     item.Displayname,
+			Category:        item.Category,
+		})
 	}
 	return completePriceDetails, nil
 }
 
-func (c *RackspaceSpotClient) GetPriceDetailsForServerClass(ctx context.Context, serverClass string) (*PriceDetails, error) {
-
-	var serverData ServerData
-	if err := c.doRequest(ctx, http.MethodGet, PriceDetailsURL, nil, nil, &serverData); err != nil {
-		return nil, c.handleAPIError(err, "server class", serverClass, "get price details")
+func (c *RackspaceSpotClient) GetPriceDetailsForServerClass(ctx context.Context, serverClassName string) (*PriceDetails, error) {
+	serverClass, err := c.GetServerClass(ctx, serverClassName)
+	if err != nil {
+		return nil, err
 	}
-	var priceDetails PriceDetails
-
-	for region, details := range serverData.Regions {
-		for serverClassName, pricingDetails := range details.ServerClasses {
-			if serverClassName == serverClass {
-				priceDetails = PriceDetails{
-					ServerClassName: serverClassName,
-					Region:          region,
-					MarketPrice:     "$" + pricingDetails.MarketPrice,
-					CPU:             pricingDetails.CPU,
-					Memory:          pricingDetails.Memory,
-					DisplayName:     pricingDetails.DisplayName,
-					Category:        pricingDetails.Category,
-				}
-				return &priceDetails, nil
-
-			}
-		}
+	priceDetails := PriceDetails{
+		ServerClassName: serverClass.Name,
+		Region:          serverClass.Region,
+		MarketPrice:     serverClass.CurrentMarketPricePerHour,
+		CPU:             serverClass.Resources.CPU,
+		Memory:          serverClass.Resources.Memory,
+		DisplayName:     serverClass.Displayname,
+		Category:        serverClass.Category,
 	}
-	return nil, fmt.Errorf("server class '%s' not found", serverClass)
+	return &priceDetails, nil
+
 }
 
 func (c *RackspaceSpotClient) GetPriceDetailsForRegion(ctx context.Context, regionName string) (*PriceDetails, error) {
-	var serverData ServerData
-	if err := c.doRequest(ctx, http.MethodGet, PriceDetailsURL, nil, nil, &serverData); err != nil {
-		return nil, c.handleAPIError(err, "region", regionName, "get price details")
+	serverClassess, err := c.ListServerClasses(ctx, regionName)
+	if err != nil {
+		return nil, err
 	}
+
 	var priceDetails PriceDetails
 
-	for region, details := range serverData.Regions {
-		if region == regionName {
-			for serverClassName, pricingDetails := range details.ServerClasses {
-				priceDetails = PriceDetails{
-					ServerClassName: serverClassName,
-					Region:          region,
-					MarketPrice:     "$" + pricingDetails.MarketPrice,
-					CPU:             pricingDetails.CPU,
-					Memory:          pricingDetails.Memory,
-					DisplayName:     pricingDetails.DisplayName,
-					Category:        pricingDetails.Category,
-				}
-			}
-		}
-		return &priceDetails, nil
-	}
-	return nil, fmt.Errorf("region '%s' not found", regionName)
-}
-
-func (c *RackspaceSpotClient) GetMarketPriceForServerClass(ctx context.Context, serverClass string) (string, error) {
-	var serverData ServerData
-	if err := c.doRequest(ctx, http.MethodGet, PriceDetailsURL, nil, nil, &serverData); err != nil {
-		return "", c.handleAPIError(err, "server class", serverClass, "get market price")
-	}
-
-	for _, details := range serverData.Regions {
-		for serverClassName, pricingDetails := range details.ServerClasses {
-			if serverClassName == serverClass {
-				return "$" + pricingDetails.MarketPrice, nil
+	for _, item := range serverClassess.Items {
+		if item.Region == regionName {
+			priceDetails = PriceDetails{
+				ServerClassName: item.Name,
+				Region:          regionName,
+				MarketPrice:     item.CurrentMarketPricePerHour,
+				CPU:             item.Resources.CPU,
+				Memory:          item.Resources.Memory,
+				DisplayName:     item.Displayname,
+				Category:        item.Category,
 			}
 		}
 	}
-	return "", fmt.Errorf("server class '%s' not found", serverClass)
+	return &priceDetails, nil
 }
 
-func (c *RackspaceSpotClient) GetMinimumBidPriceForServerClass(ctx context.Context, serverClass string) (string, error) {
-	ServerClassDetails, _ := c.GetServerClass(ctx, serverClass)
-	return ServerClassDetails.MinBidPricePerHour, nil
+func (c *RackspaceSpotClient) GetMarketPriceForServerClass(ctx context.Context, serverClassStatus *ServerClassStatus) string {
+	marketPricePerHour := "N/A"
+
+	if serverClassStatus != nil {
+		marketPricePerHour = "$" + serverClassStatus.SpotPricing.MarketPricePerHour
+
+	}
+	return marketPricePerHour
+}
+
+func (c *RackspaceSpotClient) GetMinimumBidPriceForServerClass(ctx context.Context, serverClass *ServerClassSpec) string {
+	var minBidPrice = "N/A"
+
+	if serverClass != nil {
+		minBidPrice = "$" + serverClass.MinBidPricePerHour
+
+	}
+	return minBidPrice
 }
