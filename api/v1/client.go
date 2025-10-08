@@ -14,16 +14,34 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/klog/v2"
+	"github.com/cenkalti/backoff/v5"
+	"github.com/kelseyhightower/envconfig"
 )
 
+type RetryConfig struct {
+	MaxRetries          int           `envconfig:"SPOT_MAX_RETRIES" default:"10"`
+	RetryWaitMax        time.Duration `envconfig:"SPOT_RETRY_WAIT_MAX" default:"600s"`            // The maximum wait time between retries.
+	RandomizationFactor float64       `envconfig:"SPOT_RETRY_RANDOMIZATION_FACTOR" default:"0.5"` // A value used to introduce randomness (jitter) into the wait time.
+	Multiplier          float64       `envconfig:"SPOT_RETRY_MULTIPLIER" default:"2"`             // The factor by which the wait time increases after each retry
+	InitialInterval     time.Duration `envconfig:"SPOT_RETRY_INITIAL_INTERVAL" default:"1s"`      // The initial wait time before the first retry
+}
+
+// Config holds the configuration for the Rackspace Spot API client
 // Config holds the configuration for the Rackspace Spot API client
 type Config struct {
-	BaseURL      string
-	OAuthURL     string
-	HTTPClient   *http.Client
-	AccessToken  string
-	RefreshToken string
+	BaseURL      string       `envconfig:"SPOT_BASE_URL" default:"https://spot.rackspace.com"`
+	OAuthURL     string       `envconfig:"SPOT_AUTH_URL" default:"https://login.spot.rackspace.com"`
+	AccessToken  string       `envconfig:"SPOT_ACCESS_TOKEN"`
+	RefreshToken string       `envconfig:"SPOT_REFRESH_TOKEN"`
+	HTTPClient   *http.Client `ignored:"true"` // Custom HTTP client (not configurable via env)
+
+	// Retry configuration
+	RetryConfig RetryConfig `envconfig:"RXTSPOT_RETRY_CONFIG"`
+
+	// HTTP client configuration
+	RequestTimeout  time.Duration `envconfig:"SPOT_REQUEST_TIMEOUT" default:"30s"`
+	IdleConnTimeout time.Duration `envconfig:"SPOT_IDLE_CONN_TIMEOUT" default:"90s"`
+	MaxIdleConns    int           `envconfig:"SPOT_MAX_IDLE_CONNS" default:"100"`
 }
 
 type RackspaceSpotClient struct {
@@ -32,6 +50,11 @@ type RackspaceSpotClient struct {
 	HTTPClient   *http.Client
 	Token        string
 	RefreshToken string
+	// Retry configuration
+	RetryConfig RetryConfig
+
+	RequestTimeout  time.Duration // Timeout for each HTTP request (default: 30s)
+	IdleConnTimeout time.Duration // Maximum idle connection timeout (default: 90s)
 }
 
 type HTTPStatusError struct {
@@ -39,18 +62,56 @@ type HTTPStatusError struct {
 	Body       string
 }
 
-// NewSpotClient creates a new Rackspace Spot API client with secure defaults
+// NewSpotClient creates a new Rackspace Spot API client with secure defaults.
+// Configuration is loaded in the following order:
+// 1. Values provided in the config parameter
+// 2. Environment variables (with RXTSPOT_ prefix)
+// 3. Default values (for fields with default tags)
 func NewSpotClient(cfg *Config) (*RackspaceSpotClient, error) {
+	// Process environment variables if config is nil
+	if cfg == nil {
+		cfg = &Config{}
+	}
+
+	// Load configuration from environment variables
+	if err := envconfig.Process("", cfg); err != nil {
+		return nil, fmt.Errorf("failed to process environment config: %w", err)
+	}
+
 	if cfg.BaseURL == "" {
-		return nil, fmt.Errorf("base URL is required")
+		return nil, fmt.Errorf("base URL is required (set RXTSPOT_BASE_URL)")
+	}
+
+	// Set up HTTP transport
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.IdleConnTimeout = cfg.IdleConnTimeout
+	transport.MaxIdleConns = cfg.MaxIdleConns
+
+	// Configure dialer with timeout
+	dialer := &net.Dialer{
+		Timeout:   cfg.RequestTimeout,
+		KeepAlive: 30 * time.Second,
+	}
+	transport.DialContext = dialer.DialContext
+
+	// Create or configure HTTP client
+	client := cfg.HTTPClient
+	if client == nil {
+		client = &http.Client{
+			Transport: transport,
+			Timeout:   cfg.RequestTimeout,
+		}
 	}
 
 	return &RackspaceSpotClient{
-		BaseURL:      cfg.BaseURL,
-		OAuthURL:     cfg.OAuthURL,
-		HTTPClient:   cfg.HTTPClient,
-		Token:        cfg.AccessToken,
-		RefreshToken: cfg.RefreshToken,
+		BaseURL:         cfg.BaseURL,
+		OAuthURL:        cfg.OAuthURL,
+		HTTPClient:      client,
+		Token:           cfg.AccessToken,
+		RefreshToken:    cfg.RefreshToken,
+		RetryConfig:     cfg.RetryConfig,
+		RequestTimeout:  cfg.RequestTimeout,
+		IdleConnTimeout: cfg.IdleConnTimeout,
 	}, nil
 }
 
@@ -152,75 +213,66 @@ func (c *RackspaceSpotClient) doRequest(ctx context.Context, method, url string,
 		return err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
-	if err != nil {
-		klog.Errorf("doRequest: failed to create request: %v", err)
-		return err
-	}
-
-	// Add headers
-	for key, value := range headers {
-		req.Header.Set(key, value)
-	}
-	if method == http.MethodPatch {
-		req.Header.Set("Content-Type", "application/merge-patch+json")
-	}
-
-	// ----- Request logging -----
-	klog.V(1).Infof("[%s] %s", method, url)
-	if len(headers) > 0 {
-		klog.V(2).Infof("Request headers: %+v", headers)
-	}
-	if len(body) > 0 {
-		klog.V(3).Infof("Request body: %s", string(body))
-	}
-
-	// ----- Perform HTTP request -----
-	start := time.Now()
-	resp, err := c.HTTPClient.Do(req)
-	duration := time.Since(start)
-	if err != nil {
-		klog.Errorf("HTTP request failed after %v: %v", duration, err)
-		return err
-	}
-	defer resp.Body.Close()
-
-	klog.V(2).Infof("Response status: %d %s (duration: %v)", resp.StatusCode, http.StatusText(resp.StatusCode), duration)
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		b, err := io.ReadAll(resp.Body)
+	operation := func() (string, error) {
+		req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
 		if err != nil {
-			klog.Errorf("Failed to read response body: %v", err)
-			return fmt.Errorf("read response body: %w", err)
+			return "", backoff.Permanent(fmt.Errorf("failed to create request: %w", err))
 		}
-		return &HTTPStatusError{StatusCode: resp.StatusCode, Body: string(b)}
-	}
 
-	// ----- Response logging -----
-	if klog.V(3).Enabled() {
-		klog.V(3).Infof("Response headers: %+v", resp.Header)
-	}
-	if klog.V(4).Enabled() {
-		respBody, err := io.ReadAll(resp.Body)
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		if method == http.MethodPatch {
+			req.Header.Set("Content-Type", "application/merge-patch+json")
+		}
+
+		resp, err := c.HTTPClient.Do(req)
 		if err != nil {
-			klog.Errorf("Failed to read response body: %v", err)
-			return fmt.Errorf("read response body: %w", err)
+			// retryable error
+			return "", fmt.Errorf("http request failed: %w", err)
 		}
-		resp.Body = io.NopCloser(bytes.NewReader(respBody))
-		klog.V(4).Infof("Response body: %s", string(respBody))
-	}
+		defer resp.Body.Close()
 
-	// ----- Decode if out != nil -----
-	if out != nil {
-		dec := json.NewDecoder(resp.Body)
-		if err := dec.Decode(out); err != nil && err != io.EOF {
-			klog.Errorf("Failed to decode JSON: %v", err)
-			return fmt.Errorf("decode json: %w", err)
+		// Treat 4xx as permanent errors (no retry)
+		if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+			bodyBytes, _ := io.ReadAll(resp.Body)
+			return "", backoff.Permanent(&HTTPStatusError{
+				StatusCode: resp.StatusCode,
+				Body:       string(bodyBytes),
+			})
 		}
-		klog.V(4).Infof("Decoded object: %+v", out)
+
+		// Treat 5xx as retryable errors
+		if resp.StatusCode >= 500 {
+			bodyBytes, _ := io.ReadAll(resp.Body)
+			return "", fmt.Errorf("server error: %d %s", resp.StatusCode, string(bodyBytes))
+		}
+
+		// Success case
+		if out != nil {
+			if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+				return "", backoff.Permanent(fmt.Errorf("failed to decode response: %w", err))
+			}
+		}
+		return "", nil
+	}
+	exponentialBackOff := backoff.NewExponentialBackOff()
+	exponentialBackOff.InitialInterval = time.Duration(c.RetryConfig.InitialInterval)
+	exponentialBackOff.RandomizationFactor = c.RetryConfig.RandomizationFactor
+	exponentialBackOff.Multiplier = c.RetryConfig.Multiplier
+	exponentialBackOff.MaxInterval = time.Duration(c.RetryConfig.RetryWaitMax)
+
+	_, err := backoff.Retry(ctx, operation, backoff.WithMaxTries(uint(c.RetryConfig.MaxRetries)), backoff.WithMaxElapsedTime(time.Duration(c.RetryConfig.RetryWaitMax)), backoff.WithBackOff(exponentialBackOff))
+	if err != nil {
+		return err
 	}
 
 	return nil
+}
+
+// isAlphanumeric returns true if the rune is an ASCII letter or digit
+func isAlphanumeric(r rune) bool {
+	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9')
 }
 
 // isValidHostname checks if a string is a valid hostname (supports both domains and IPs)
@@ -230,37 +282,47 @@ func isValidHostname(hostname string) bool {
 		return true
 	}
 
-	// Then check as domain name (simplified check)
-	// This is a basic check - for production you might want more comprehensive validation
+	// Then check as domain name
 	if len(hostname) > 253 || len(hostname) == 0 {
 		return false
 	}
 
 	// Check each label in the hostname
 	for _, label := range strings.Split(hostname, ".") {
+		// Check label length
 		if len(label) > 63 || len(label) == 0 {
 			return false
 		}
 
-		// Labels must start and end with alphanumeric characters
-		if len(label) > 0 && !isAlphanumeric(rune(label[0])) || !isAlphanumeric(rune(label[len(label)-1])) {
-			return false
-		}
-
-		// Labels can contain alphanumeric characters and hyphens
-		for _, r := range label {
+		// Check each character in the label
+		for i, r := range label {
+			// Allow alphanumeric and hyphens (but not as first or last character)
 			if !isAlphanumeric(r) && r != '-' {
+				return false
+			}
+
+			// First and last character must be alphanumeric
+			/*
+							i == 0 - Checks if it's the first character of the label
+				i == len(label)-1 - Checks if it's the last character of the label
+				!isAlphanumeric(r) - Verifies the character is NOT alphanumeric (not a letter or number)
+
+				This ensures that the first and last characters of each label in a hostname must be alphanumeric.
+
+				For example:
+
+				Valid: example.com (starts and ends with letters)
+				Invalid: -example.com (starts with a hyphen)
+				Invalid: example-.com (ends with a hyphen)
+				This is a standard rule in hostname validation, as per RFC 1123.
+			*/
+			if (i == 0 || i == len(label)-1) && !isAlphanumeric(r) {
 				return false
 			}
 		}
 	}
 
 	return true
-}
-
-// isAlphanumeric checks if a rune is alphanumeric
-func isAlphanumeric(r rune) bool {
-	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9')
 }
 
 // APIError represents an error response from the API
