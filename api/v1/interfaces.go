@@ -2,6 +2,8 @@ package rxtspot
 
 import "context"
 
+//go:generate mockgen -source interfaces.go -destination mocks/mock_interfaces.go -package mocks
+
 // OrganizationAPI defines organization-related methods.
 type OrganizationAPI interface {
 	ListOrganizations(ctx context.Context) ([]Organization, error)
