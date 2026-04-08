@@ -77,13 +77,20 @@ type SpotNodePoolStatus struct {
 }
 
 // OnDemand node pool read-only spec and status
+type OnDemandNodePoolAutoscalingRO struct {
+	Enabled  bool `json:"enabled"`
+	MaxNodes int  `json:"maxNodes"`
+	MinNodes int  `json:"minNodes"`
+}
+
 type OnDemandNodePoolSpecReadOnly struct {
-	CloudSpace        string            `json:"cloudSpace"`
-	CustomAnnotations map[string]string `json:"customAnnotations,omitempty"`
-	CustomLabels      map[string]string `json:"customLabels,omitempty"`
-	CustomTaints      []interface{}     `json:"customTaints,omitempty"`
-	Desired           int               `json:"desired"`
-	ServerClass       string            `json:"serverClass"`
+	Autoscaling       OnDemandNodePoolAutoscalingRO `json:"autoscaling"`
+	CloudSpace        string                        `json:"cloudSpace"`
+	CustomAnnotations map[string]string             `json:"customAnnotations,omitempty"`
+	CustomLabels      map[string]string             `json:"customLabels,omitempty"`
+	CustomTaints      []interface{}                 `json:"customTaints,omitempty"`
+	Desired           int                           `json:"desired"`
+	ServerClass       string                        `json:"serverClass"`
 }
 
 type OnDemandNodePoolStatus struct {

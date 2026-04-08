@@ -54,6 +54,15 @@ func (c *RackspaceSpotClient) ListSpotNodePools(ctx context.Context, org, clouds
 			BidPrice:          "$" + item.Spec.BidPrice,
 			WonCount:          item.Status.WonCount,
 			Status:            item.Status.BidStatus,
+			Autoscaling: struct {
+				Enabled  bool  `json:"enabled" yaml:"enabled"`
+				MinNodes int64 `json:"minNodes" yaml:"minNodes"`
+				MaxNodes int64 `json:"maxNodes" yaml:"maxNodes"`
+			}{
+				Enabled:  item.Spec.Autoscaling.Enabled,
+				MinNodes: int64(item.Spec.Autoscaling.MinNodes),
+				MaxNodes: int64(item.Spec.Autoscaling.MaxNodes),
+			},
 		})
 	}
 	return finalList, nil
@@ -234,5 +243,14 @@ func (c *RackspaceSpotClient) GetSpotNodePool(ctx context.Context, org, name str
 		BidPrice:          "$" + interm.Spec.BidPrice,
 		WonCount:          interm.Status.WonCount,
 		Status:            interm.Status.BidStatus,
+		Autoscaling: struct {
+			Enabled  bool  `json:"enabled" yaml:"enabled"`
+			MinNodes int64 `json:"minNodes" yaml:"minNodes"`
+			MaxNodes int64 `json:"maxNodes" yaml:"maxNodes"`
+		}{
+			Enabled:  interm.Spec.Autoscaling.Enabled,
+			MinNodes: int64(interm.Spec.Autoscaling.MinNodes),
+			MaxNodes: int64(interm.Spec.Autoscaling.MaxNodes),
+		},
 	}, nil
 }

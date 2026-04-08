@@ -209,6 +209,62 @@ func (c *RackspaceSpotClient) GetCloudspace(ctx context.Context, org, name strin
 	return &finalList, nil
 }
 
+// UpdateCloudspace updates an existing cloudspace in the given namespace.
+func (c *RackspaceSpotClient) UpdateCloudspace(ctx context.Context, org string, cs CloudSpace) error {
+	if err := ValidateOrgName(org); err != nil {
+		return fmt.Errorf("invalid organization name: %w", err)
+	}
+	if err := ValidateResourceName(cs.Name); err != nil {
+		return fmt.Errorf("invalid cloudspace name: %w", err)
+	}
+
+	exists, orgID, err := c.getOrgIDIFExists(ctx, org)
+	if err != nil {
+		return fmt.Errorf("invalid organization: %w", err)
+	}
+	if !exists {
+		return fmt.Errorf("organization '%s' not found", org)
+	}
+
+	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/cloudspaces/%s", c.BaseURL, orgID, cs.Name)
+
+	// Build patch body with only the mutable fields provided
+	updateBody := struct {
+		Spec struct {
+			DeploymentType    string `json:"deploymentType,omitempty"`
+			Cloud             string `json:"cloud,omitempty"`
+			Region            string `json:"region,omitempty"`
+			Webhook           string `json:"webhook,omitempty"`
+			CNI               string `json:"cni,omitempty"`
+			KubernetesVersion string `json:"kubernetesVersion,omitempty"`
+			HAControlPlane    *bool  `json:"HAControlPlane,omitempty"`
+			GpuEnabled        *bool  `json:"gpuEnabled,omitempty"`
+		} `json:"spec"`
+	}{}
+
+	// Only set fields that are non-empty/non-zero
+	if cs.KubernetesVersion != "" {
+		updateBody.Spec.KubernetesVersion = cs.KubernetesVersion
+	}
+	if cs.PreemptionWebhookURL != "" {
+		updateBody.Spec.Webhook = cs.PreemptionWebhookURL
+	}
+	if cs.CNI != "" {
+		updateBody.Spec.CNI = cs.CNI
+	}
+	// HAControlPlane and GpuEnabled are booleans, so we can't check for empty
+	// This is intentional - if you want to update them, you should set them on the CloudSpace object
+
+	body, err := json.Marshal(updateBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal update body: %w", err)
+	}
+
+	var respBody interface{}
+	err = c.doRequest(ctx, http.MethodPatch, url, body, c.authHeader(), &respBody)
+	return c.handleAPIError(err, "cloudspace", cs.Name, "update")
+}
+
 func (c *RackspaceSpotClient) GetCloudspaceConfig(ctx context.Context, namespace, name string) (string, error) {
 	if err := ValidateOrgName(namespace); err != nil {
 		return "", fmt.Errorf("invalid organization name: %w", err)

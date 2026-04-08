@@ -60,6 +60,15 @@ func (c *RackspaceSpotClient) ListOnDemandNodePools(ctx context.Context, org, cl
 			WonCount:             item.Status.ReservedCount,
 			Status:               item.Status.ReservedStatus,
 			OnDemandPricePerHour: onDemandPoolcost,
+			Autoscaling: struct {
+				Enabled  bool `json:"enabled" yaml:"enabled"`
+				MinNodes int  `json:"minNodes" yaml:"minNodes"`
+				MaxNodes int  `json:"maxNodes" yaml:"maxNodes"`
+			}{
+				Enabled:  item.Spec.Autoscaling.Enabled,
+				MinNodes: item.Spec.Autoscaling.MinNodes,
+				MaxNodes: item.Spec.Autoscaling.MaxNodes,
+			},
 		})
 	}
 	return finalList, nil
@@ -196,6 +205,15 @@ func (c *RackspaceSpotClient) GetOnDemandNodePool(ctx context.Context, org, name
 		WonCount:             interm.Status.ReservedCount,
 		Status:               interm.Status.ReservedStatus,
 		OnDemandPricePerHour: serverClass.OnDemandPricePerHour,
+		Autoscaling: struct {
+			Enabled  bool `json:"enabled" yaml:"enabled"`
+			MinNodes int  `json:"minNodes" yaml:"minNodes"`
+			MaxNodes int  `json:"maxNodes" yaml:"maxNodes"`
+		}{
+			Enabled:  interm.Spec.Autoscaling.Enabled,
+			MinNodes: interm.Spec.Autoscaling.MinNodes,
+			MaxNodes: interm.Spec.Autoscaling.MaxNodes,
+		},
 	}, nil
 }
 
