@@ -73,7 +73,7 @@ func TestUpdateCloudspace_NoMutableFields(t *testing.T) {
 
 func TestUpdateCloudspace_InvalidOrg(t *testing.T) {
 	client := newTestClient("")
-	opts := CloudSpaceUpdateOptions{Name: "test-cs", KubernetesVersion: StringPtr("1.31")}
+	opts := CloudSpaceUpdateOptions{Name: "test-cs", KubernetesVersion: stringPtr("1.31")}
 
 	_, err := client.UpdateCloudspace(context.Background(), "", opts)
 	if err == nil {
@@ -116,7 +116,7 @@ func TestUpdateCloudspace_PatchBodyShape(t *testing.T) {
 	haControlPlane := true
 	opts := CloudSpaceUpdateOptions{
 		Name:              "test-cs",
-		KubernetesVersion: StringPtr("1.31"),
+		KubernetesVersion: stringPtr("1.31"),
 		GpuEnabled:        &gpuEnabled,
 		HAControlPlane:    &haControlPlane,
 	}
@@ -210,7 +210,7 @@ func TestUpdateCloudspace_OnlyWebhook(t *testing.T) {
 	client := newTestClient(server.URL)
 	opts := CloudSpaceUpdateOptions{
 		Name:                 "test-cs",
-		PreemptionWebhookURL: StringPtr("https://example.com/hook"),
+		PreemptionWebhookURL: stringPtr("https://example.com/hook"),
 	}
 
 	result, err := client.UpdateCloudspace(context.Background(), "test-org", opts)
@@ -223,18 +223,18 @@ func TestUpdateCloudspace_OnlyWebhook(t *testing.T) {
 }
 
 func TestBoolPtr(t *testing.T) {
-	val := BoolPtr(true)
+	val := boolPtr(true)
 	if *val != true {
 		t.Error("expected true")
 	}
-	val2 := BoolPtr(false)
+	val2 := boolPtr(false)
 	if *val2 != false {
 		t.Error("expected false")
 	}
 }
 
 func TestStringPtr(t *testing.T) {
-	p := StringPtr("hello")
+	p := stringPtr("hello")
 	if p == nil || *p != "hello" {
 		t.Error("expected non-nil pointer to 'hello'")
 	}
@@ -318,7 +318,7 @@ func TestUpdateSpotNodePool_AutoscalingNil(t *testing.T) {
 
 	opts := SpotNodePoolUpdateOptions{
 		Name:    "test-pool",
-		Desired: IntPtr(3),
+		Desired: intPtr(3),
 	}
 
 	err := client.UpdateSpotNodePool(context.Background(), "test-org", opts)
@@ -361,7 +361,7 @@ func TestUpdateSpotNodePool_AutoscalingSet(t *testing.T) {
 
 	opts := SpotNodePoolUpdateOptions{
 		Name:    "test-pool",
-		Desired: IntPtr(3),
+		Desired: intPtr(3),
 		Autoscaling: &Autoscaling{
 			Enabled:  true,
 			MinNodes: int64(0),
@@ -416,7 +416,7 @@ func TestUpdateOnDemandNodePool_AutoscalingNil(t *testing.T) {
 
 	opts := OnDemandNodePoolUpdateOptions{
 		Name:    "test-pool",
-		Desired: IntPtr(2),
+		Desired: intPtr(2),
 	}
 
 	err := client.UpdateOnDemandNodePool(context.Background(), "test-org", opts)
@@ -438,7 +438,7 @@ func TestUpdateOnDemandNodePool_AutoscalingNil(t *testing.T) {
 	}
 }
 
-func TestAutoscalingPointerFields(t *testing.T) {
+func TestAutoscalingFieldValueAssignment(t *testing.T) {
 	enabled := true
 	min := int64(1)
 	max := int64(5)

@@ -136,9 +136,10 @@ type PriceDetails struct {
 	Memory          string `json:"memory" yaml:"memory"`
 }
 
-// CloudSpaceUpdateOptions contains only the mutable fields for updating a cloudspace.
-// Pointer fields distinguish "not provided" (nil) from "explicitly set to zero value"
-// for PATCH semantics.
+// CloudSpaceUpdateOptions specifies which fields to update on an existing cloudspace.
+// Name identifies the target resource; all other fields are optional mutable
+// patch fields where nil means "do not change" and a non-nil value replaces the
+// current setting.
 type CloudSpaceUpdateOptions struct {
 	Name                 string  `json:"name" yaml:"name"`
 	KubernetesVersion    *string `json:"kubernetesVersion,omitempty" yaml:"kubernetesVersion,omitempty"`
@@ -148,9 +149,10 @@ type CloudSpaceUpdateOptions struct {
 	GpuEnabled           *bool   `json:"gpuEnabled,omitempty" yaml:"gpuEnabled,omitempty"`
 }
 
-// SpotNodePoolUpdateOptions contains only the mutable fields for updating a spot node pool.
-// Pointer fields distinguish "not provided" (nil) from "explicitly set to zero value"
-// for PATCH semantics.
+// SpotNodePoolUpdateOptions specifies which fields to update on an existing spot node pool.
+// Name identifies the target resource; all other fields are optional mutable
+// patch fields where nil/empty means "do not change" and a non-nil value replaces the
+// current setting.
 type SpotNodePoolUpdateOptions struct {
 	Name              string            `json:"name" yaml:"name"`
 	Desired           *int              `json:"desired,omitempty" yaml:"desired,omitempty"`
@@ -161,9 +163,10 @@ type SpotNodePoolUpdateOptions struct {
 	Autoscaling       *Autoscaling      `json:"autoscaling,omitempty" yaml:"autoscaling,omitempty"`
 }
 
-// OnDemandNodePoolUpdateOptions contains only the mutable fields for updating an on-demand node pool.
-// Pointer fields distinguish "not provided" (nil) from "explicitly set to zero value"
-// for PATCH semantics.
+// OnDemandNodePoolUpdateOptions specifies which fields to update on an existing on-demand node pool.
+// Name identifies the target resource; all other fields are optional mutable
+// patch fields where nil/empty means "do not change" and a non-nil value replaces the
+// current setting.
 type OnDemandNodePoolUpdateOptions struct {
 	Name              string            `json:"name" yaml:"name"`
 	Desired           *int              `json:"desired,omitempty" yaml:"desired,omitempty"`

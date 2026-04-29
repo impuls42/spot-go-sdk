@@ -76,25 +76,12 @@ func (c *RackspaceSpotClient) CreateCloudspace(ctx context.Context, cs CloudSpac
 	cloudspaceCreateRequestBody := CloudSpaceCreateRequestBody{
 		APIVersion: "ngpc.rxt.io/v1",
 		Kind:       "CloudSpace",
-		Metadata: struct {
-			Name        string            `json:"name"`
-			Namespace   string            `json:"namespace"`
-			Annotations map[string]string `json:"annotations"`
-		}{
+		Metadata: ObjectMetaWithAnnotations{
 			Name:        cs.Name,
 			Namespace:   orgID,
 			Annotations: map[string]string{},
 		},
-		Spec: struct {
-			DeploymentType    string `json:"deploymentType"`
-			Cloud             string `json:"cloud"`
-			Region            string `json:"region"`
-			Webhook           string `json:"webhook"`
-			CNI               string `json:"cni"`
-			KubernetesVersion string `json:"kubernetesVersion"`
-			HAControlPlane    bool   `json:"HAControlPlane"`
-			GpuEnabled        bool   `json:"gpuEnabled"`
-		}{
+		Spec: CloudSpaceSpec{
 			DeploymentType:    "gen2",
 			Cloud:             "default",
 			Region:            cs.Region,
@@ -257,11 +244,11 @@ func cloudSpaceFromResponse(org string, resp *cloudSpaceGetResponse, spotNodePoo
 	}
 }
 
-func BoolPtr(b bool) *bool { return &b }
+func boolPtr(b bool) *bool { return &b }
 
-func IntPtr(i int) *int { return &i }
+func intPtr(i int) *int { return &i }
 
-func StringPtr(s string) *string { return &s }
+func stringPtr(s string) *string { return &s }
 
 func (c *RackspaceSpotClient) GetCloudspaceConfig(ctx context.Context, namespace, name string) (string, error) {
 	if err := ValidateOrgName(namespace); err != nil {
