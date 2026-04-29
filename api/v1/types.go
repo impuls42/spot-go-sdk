@@ -12,8 +12,8 @@ type CloudSpace struct {
 	CreationTimestamp    time.Time                 `json:"creationTimestamp,omitempty" yaml:"creationTimestamp,omitempty"`
 	CNI                  string                    `json:"cni,omitempty" yaml:"cni,omitempty"`
 	DeploymentType       string                    `json:"deploymentType,omitempty" yaml:"deploymentType,omitempty"`
-	GpuEnabled           *bool                     `json:"gpuEnabled,omitempty" yaml:"gpuEnabled,omitempty"`
-	HAControlPlane       *bool                     `json:"HAControlPlane,omitempty" yaml:"HAControlPlane,omitempty"`
+	GpuEnabled           bool                      `json:"gpuEnabled,omitempty" yaml:"gpuEnabled,omitempty"`
+	HAControlPlane       bool                      `json:"HAControlPlane,omitempty" yaml:"HAControlPlane,omitempty"`
 	KubernetesVersion    string                    `json:"kubernetesVersion,omitempty" yaml:"kubernetesVersion,omitempty"`
 	Region               string                    `json:"region,omitempty" yaml:"region,omitempty"`
 	PreemptionWebhookURL string                    `json:"preEmptionWebhookURL,omitempty" yaml:"preEmptionWebhookURL,omitempty"`
@@ -54,7 +54,7 @@ type SpotNodePool struct {
 	Org               string            `json:"org,omitempty" yaml:"org,omitempty"`
 	Cloudspace        string            `json:"cloudspace,omitempty" yaml:"cloudspace,omitempty"`
 	ServerClass       string            `json:"serverClass,omitempty" yaml:"serverClass,omitempty"`
-	Desired           *int              `json:"desired,omitempty" yaml:"desired,omitempty"`
+	Desired           int               `json:"desired,omitempty" yaml:"desired,omitempty"`
 	WonCount          int               `json:"wonCount,omitempty" yaml:"wonCount,omitempty"`
 	CustomAnnotations map[string]string `json:"customAnnotations,omitempty" yaml:"customAnnotations,omitempty"`
 	CustomLabels      map[string]string `json:"customLabels,omitempty" yaml:"customLabels,omitempty"`
@@ -76,7 +76,7 @@ type OnDemandNodePool struct {
 	Org                  string            `json:"org,omitempty" yaml:"org,omitempty"`
 	Cloudspace           string            `json:"cloudspace,omitempty" yaml:"cloudspace,omitempty"`
 	ServerClass          string            `json:"serverClass,omitempty" yaml:"serverClass,omitempty"`
-	Desired              *int              `json:"desired,omitempty" yaml:"desired,omitempty"`
+	Desired              int               `json:"desired,omitempty" yaml:"desired,omitempty"`
 	WonCount             int               `json:"wonCount,omitempty" yaml:"wonCount,omitempty"`
 	CustomAnnotations    map[string]string `json:"customAnnotations,omitempty" yaml:"customAnnotations,omitempty"`
 	CustomLabels         map[string]string `json:"customLabels,omitempty" yaml:"customLabels,omitempty"`
@@ -134,4 +134,41 @@ type PriceDetails struct {
 	MarketPrice     string `json:"currentMarketPrice" yaml:"currentMarketPrice"`
 	CPU             string `json:"cpu" yaml:"cpu"`
 	Memory          string `json:"memory" yaml:"memory"`
+}
+
+// CloudSpaceUpdateOptions contains only the mutable fields for updating a cloudspace.
+// Pointer fields distinguish "not provided" (nil) from "explicitly set to zero value"
+// for PATCH semantics.
+type CloudSpaceUpdateOptions struct {
+	Name                 string
+	KubernetesVersion    *string
+	PreemptionWebhookURL *string
+	CNI                  *string
+	HAControlPlane       *bool
+	GpuEnabled           *bool
+}
+
+// SpotNodePoolUpdateOptions contains only the mutable fields for updating a spot node pool.
+// Pointer fields distinguish "not provided" (nil) from "explicitly set to zero value"
+// for PATCH semantics.
+type SpotNodePoolUpdateOptions struct {
+	Name              string
+	Desired           *int
+	BidPrice          string
+	CustomAnnotations map[string]string
+	CustomLabels      map[string]string
+	CustomTaints      []interface{}
+	Autoscaling       *Autoscaling
+}
+
+// OnDemandNodePoolUpdateOptions contains only the mutable fields for updating an on-demand node pool.
+// Pointer fields distinguish "not provided" (nil) from "explicitly set to zero value"
+// for PATCH semantics.
+type OnDemandNodePoolUpdateOptions struct {
+	Name              string
+	Desired           *int
+	CustomAnnotations map[string]string
+	CustomLabels      map[string]string
+	CustomTaints      []interface{}
+	Autoscaling       *Autoscaling
 }

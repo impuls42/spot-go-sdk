@@ -50,7 +50,7 @@ func (c *RackspaceSpotClient) ListSpotNodePools(ctx context.Context, org, clouds
 			Org:               org,
 			Cloudspace:        item.Spec.CloudSpace,
 			ServerClass:       item.Spec.ServerClass,
-			Desired:           IntPtr(item.Spec.Desired),
+			Desired:           item.Spec.Desired,
 			BidPrice:          "$" + item.Spec.BidPrice,
 			WonCount:          item.Status.WonCount,
 			Status:            item.Status.BidStatus,
@@ -75,6 +75,12 @@ func (c *RackspaceSpotClient) CreateSpotNodePool(ctx context.Context, org string
 	if err := ValidateBidPrice(pool.BidPrice); err != nil {
 		return fmt.Errorf("invalid bid price: %w", err)
 	}
+	if pool.Autoscaling == nil {
+		return fmt.Errorf("autoscaling configuration is required for spot node pool creation")
+	}
+	if pool.Desired <= 0 {
+		return fmt.Errorf("desired count must be positive for spot node pool creation")
+	}
 
 	serverClass, err := c.GetServerClass(ctx, pool.ServerClass)
 	if err != nil {
@@ -93,13 +99,6 @@ func (c *RackspaceSpotClient) CreateSpotNodePool(ctx context.Context, org string
 	}
 	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/spotnodepools", c.BaseURL, orgID)
 
-	if pool.Autoscaling == nil {
-		return fmt.Errorf("autoscaling configuration is required for spot node pool creation")
-	}
-	if pool.Desired == nil {
-		return fmt.Errorf("desired count is required for spot node pool creation")
-	}
-
 	spotNodePoolCreateRequestBody := SpotNodePoolRequestBody{
 		APIVersion: "ngpc.rxt.io/v1",
 		Kind:       "SpotNodePool",
@@ -113,7 +112,7 @@ func (c *RackspaceSpotClient) CreateSpotNodePool(ctx context.Context, org string
 		Spec: SpotNodePoolSpec{
 			CommonNodePoolSpec: CommonNodePoolSpec{
 				ServerClass:       pool.ServerClass,
-				Desired:           *pool.Desired,
+				Desired:           pool.Desired,
 				CloudSpace:        pool.Cloudspace,
 				CustomAnnotations: pool.CustomAnnotations,
 				CustomLabels:      pool.CustomLabels,
@@ -138,15 +137,15 @@ func (c *RackspaceSpotClient) CreateSpotNodePool(ctx context.Context, org string
 }
 
 // UpdateSpotNodePool updates a spot node pool in the given namespace.
-func (c *RackspaceSpotClient) UpdateSpotNodePool(ctx context.Context, org string, pool SpotNodePool) error {
+func (c *RackspaceSpotClient) UpdateSpotNodePool(ctx context.Context, org string, opts SpotNodePoolUpdateOptions) error {
 	if err := ValidateOrgName(org); err != nil {
 		return fmt.Errorf("invalid organization name: %w", err)
 	}
-	if err := ValidateResourceName(pool.Name); err != nil {
+	if err := ValidateResourceName(opts.Name); err != nil {
 		return fmt.Errorf("invalid node pool name: %w", err)
 	}
-	if pool.BidPrice != "" {
-		if err := ValidateBidPrice(pool.BidPrice); err != nil {
+	if opts.BidPrice != "" {
+		if err := ValidateBidPrice(opts.BidPrice); err != nil {
 			return fmt.Errorf("invalid bid price: %w", err)
 		}
 	}
@@ -158,22 +157,22 @@ func (c *RackspaceSpotClient) UpdateSpotNodePool(ctx context.Context, org string
 	if !exists {
 		return fmt.Errorf("organization '%s' not found", org)
 	}
-	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/spotnodepools/%s", c.BaseURL, orgID, pool.Name)
+	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/spotnodepools/%s", c.BaseURL, orgID, opts.Name)
 
 	updateBody := SpotNodePoolUpdateRequestBody{
 		Spec: SpotNodePoolUpdateSpec{
-			Desired:           pool.Desired,
-			BidPrice:          pool.BidPrice,
-			CustomAnnotations: pool.CustomAnnotations,
-			CustomLabels:      pool.CustomLabels,
-			CustomTaints:      pool.CustomTaints,
+			Desired:           opts.Desired,
+			BidPrice:          opts.BidPrice,
+			CustomAnnotations: opts.CustomAnnotations,
+			CustomLabels:      opts.CustomLabels,
+			CustomTaints:      opts.CustomTaints,
 		},
 	}
-	if pool.Autoscaling != nil {
+	if opts.Autoscaling != nil {
 		updateBody.Spec.Autoscaling = &autoscalingWirePatch{
-			Enabled:  &pool.Autoscaling.Enabled,
-			MinNodes: &pool.Autoscaling.MinNodes,
-			MaxNodes: &pool.Autoscaling.MaxNodes,
+			Enabled:  &opts.Autoscaling.Enabled,
+			MinNodes: &opts.Autoscaling.MinNodes,
+			MaxNodes: &opts.Autoscaling.MaxNodes,
 		}
 	}
 
@@ -184,7 +183,7 @@ func (c *RackspaceSpotClient) UpdateSpotNodePool(ctx context.Context, org string
 
 	var respBody interface{}
 	err = c.doRequest(ctx, http.MethodPatch, url, body, c.authHeader(), &respBody)
-	return c.handleAPIError(err, "spot node pool", pool.Name, "update")
+	return c.handleAPIError(err, "spot node pool", opts.Name, "update")
 }
 
 // DeleteSpotNodePool deletes a spot node pool by name in the given namespace.
@@ -244,7 +243,7 @@ func (c *RackspaceSpotClient) GetSpotNodePool(ctx context.Context, org, name str
 		CustomAnnotations: interm.Spec.CustomAnnotations,
 		CustomLabels:      interm.Spec.CustomLabels,
 		CustomTaints:      interm.Spec.CustomTaints,
-		Desired:           IntPtr(interm.Spec.Desired),
+		Desired:           interm.Spec.Desired,
 		BidPrice:          "$" + interm.Spec.BidPrice,
 		WonCount:          interm.Status.WonCount,
 		Status:            interm.Status.BidStatus,

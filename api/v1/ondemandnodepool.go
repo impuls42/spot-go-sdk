@@ -56,7 +56,7 @@ func (c *RackspaceSpotClient) ListOnDemandNodePools(ctx context.Context, org, cl
 			Org:                  org,
 			Cloudspace:           item.Spec.CloudSpace,
 			ServerClass:          item.Spec.ServerClass,
-			Desired:              IntPtr(item.Spec.Desired),
+			Desired:              item.Spec.Desired,
 			WonCount:             item.Status.ReservedCount,
 			Status:               item.Status.ReservedStatus,
 			OnDemandPricePerHour: onDemandPoolcost,
@@ -81,8 +81,8 @@ func (c *RackspaceSpotClient) CreateOnDemandNodePool(ctx context.Context, org st
 	if pool.Autoscaling == nil {
 		return fmt.Errorf("autoscaling configuration is required for on-demand node pool creation")
 	}
-	if pool.Desired == nil {
-		return fmt.Errorf("desired count is required for on-demand node pool creation")
+	if pool.Desired <= 0 {
+		return fmt.Errorf("desired count must be positive for on-demand node pool creation")
 	}
 	serverClass, err := c.GetServerClass(ctx, pool.ServerClass)
 	if err != nil {
@@ -114,7 +114,7 @@ func (c *RackspaceSpotClient) CreateOnDemandNodePool(ctx context.Context, org st
 		Spec: OnDemandNodePoolSpec{
 			CommonNodePoolSpec: CommonNodePoolSpec{
 				ServerClass:       pool.ServerClass,
-				Desired:           *pool.Desired,
+				Desired:           pool.Desired,
 				CloudSpace:        pool.Cloudspace,
 				CustomAnnotations: pool.CustomAnnotations,
 				CustomLabels:      pool.CustomLabels,
@@ -203,7 +203,7 @@ func (c *RackspaceSpotClient) GetOnDemandNodePool(ctx context.Context, org, name
 		Org:                  org,
 		Cloudspace:           cloudspaceName,
 		ServerClass:          interm.Spec.ServerClass,
-		Desired:              IntPtr(interm.Spec.Desired),
+		Desired:              interm.Spec.Desired,
 		WonCount:             interm.Status.ReservedCount,
 		Status:               interm.Status.ReservedStatus,
 		OnDemandPricePerHour: serverClass.OnDemandPricePerHour,
@@ -215,15 +215,15 @@ func (c *RackspaceSpotClient) GetOnDemandNodePool(ctx context.Context, org, name
 	}, nil
 }
 
-func (c *RackspaceSpotClient) UpdateOnDemandNodePool(ctx context.Context, org string, pool OnDemandNodePool) error {
+func (c *RackspaceSpotClient) UpdateOnDemandNodePool(ctx context.Context, org string, opts OnDemandNodePoolUpdateOptions) error {
 	if err := ValidateOrgName(org); err != nil {
 		return fmt.Errorf("invalid organization name: %w", err)
 	}
-	if err := ValidateResourceName(pool.Name); err != nil {
+	if err := ValidateResourceName(opts.Name); err != nil {
 		return fmt.Errorf("invalid node pool name: %w", err)
 	}
 
-	if pool.Name == "" {
+	if opts.Name == "" {
 		return fmt.Errorf("name must be provided")
 	}
 
@@ -234,22 +234,21 @@ func (c *RackspaceSpotClient) UpdateOnDemandNodePool(ctx context.Context, org st
 	if !exists {
 		return fmt.Errorf("organization '%s' not found", org)
 	}
-	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/ondemandnodepools/%s", c.BaseURL, orgID, pool.Name)
+	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/ondemandnodepools/%s", c.BaseURL, orgID, opts.Name)
 
-	// Only include mutable fields in the update request
 	updateBody := OnDemandNodePoolUpdateRequestBody{
 		Spec: OnDemandNodePoolUpdateSpec{
-			Desired:           pool.Desired,
-			CustomAnnotations: pool.CustomAnnotations,
-			CustomLabels:      pool.CustomLabels,
-			CustomTaints:      pool.CustomTaints,
+			Desired:           opts.Desired,
+			CustomAnnotations: opts.CustomAnnotations,
+			CustomLabels:      opts.CustomLabels,
+			CustomTaints:      opts.CustomTaints,
 		},
 	}
-	if pool.Autoscaling != nil {
+	if opts.Autoscaling != nil {
 		updateBody.Spec.Autoscaling = &autoscalingWirePatch{
-			Enabled:  &pool.Autoscaling.Enabled,
-			MinNodes: &pool.Autoscaling.MinNodes,
-			MaxNodes: &pool.Autoscaling.MaxNodes,
+			Enabled:  &opts.Autoscaling.Enabled,
+			MinNodes: &opts.Autoscaling.MinNodes,
+			MaxNodes: &opts.Autoscaling.MaxNodes,
 		}
 	}
 
@@ -260,6 +259,6 @@ func (c *RackspaceSpotClient) UpdateOnDemandNodePool(ctx context.Context, org st
 
 	var respBody interface{}
 	err = c.doRequest(ctx, http.MethodPatch, url, body, c.authHeader(), &respBody)
-	return c.handleAPIError(err, "ondemand node pool", pool.Name, "update")
+	return c.handleAPIError(err, "ondemand node pool", opts.Name, "update")
 
 }

@@ -63,9 +63,9 @@ func emptyNodePoolListJSON() string {
 
 func TestUpdateCloudspace_NoMutableFields(t *testing.T) {
 	client := newTestClient("")
-	cs := CloudSpace{Name: "test-cs", Org: "test-org"}
+	opts := CloudSpaceUpdateOptions{Name: "test-cs"}
 
-	_, err := client.UpdateCloudspace(context.Background(), "test-org", cs)
+	_, err := client.UpdateCloudspace(context.Background(), "test-org", opts)
 	if err == nil {
 		t.Fatal("expected error when no mutable fields are set, got nil")
 	}
@@ -73,9 +73,9 @@ func TestUpdateCloudspace_NoMutableFields(t *testing.T) {
 
 func TestUpdateCloudspace_InvalidOrg(t *testing.T) {
 	client := newTestClient("")
-	cs := CloudSpace{Name: "test-cs", Org: "", KubernetesVersion: "1.31"}
+	opts := CloudSpaceUpdateOptions{Name: "test-cs", KubernetesVersion: StringPtr("1.31")}
 
-	_, err := client.UpdateCloudspace(context.Background(), "", cs)
+	_, err := client.UpdateCloudspace(context.Background(), "", opts)
 	if err == nil {
 		t.Fatal("expected error for invalid org, got nil")
 	}
@@ -114,15 +114,14 @@ func TestUpdateCloudspace_PatchBodyShape(t *testing.T) {
 
 	gpuEnabled := true
 	haControlPlane := true
-	cs := CloudSpace{
+	opts := CloudSpaceUpdateOptions{
 		Name:              "test-cs",
-		Org:               "test-org",
-		KubernetesVersion: "1.31",
+		KubernetesVersion: StringPtr("1.31"),
 		GpuEnabled:        &gpuEnabled,
 		HAControlPlane:    &haControlPlane,
 	}
 
-	result, err := client.UpdateCloudspace(context.Background(), "test-org", cs)
+	result, err := client.UpdateCloudspace(context.Background(), "test-org", opts)
 	if err != nil {
 		t.Fatalf("UpdateCloudspace returned error: %v", err)
 	}
@@ -163,10 +162,10 @@ func TestUpdateCloudspace_PatchBodyShape(t *testing.T) {
 	if result.Name != "test-cs" {
 		t.Errorf("expected Name=test-cs, got %s", result.Name)
 	}
-	if result.GpuEnabled == nil || !*result.GpuEnabled {
+	if result.GpuEnabled != true {
 		t.Error("expected GpuEnabled=true in response")
 	}
-	if result.HAControlPlane == nil || !*result.HAControlPlane {
+	if result.HAControlPlane != true {
 		t.Error("expected HAControlPlane=true in response")
 	}
 }
@@ -209,13 +208,12 @@ func TestUpdateCloudspace_OnlyWebhook(t *testing.T) {
 	defer server.Close()
 
 	client := newTestClient(server.URL)
-	cs := CloudSpace{
+	opts := CloudSpaceUpdateOptions{
 		Name:                 "test-cs",
-		Org:                  "test-org",
-		PreemptionWebhookURL: "https://example.com/hook",
+		PreemptionWebhookURL: StringPtr("https://example.com/hook"),
 	}
 
-	result, err := client.UpdateCloudspace(context.Background(), "test-org", cs)
+	result, err := client.UpdateCloudspace(context.Background(), "test-org", opts)
 	if err != nil {
 		t.Fatalf("UpdateCloudspace returned error: %v", err)
 	}
@@ -236,13 +234,9 @@ func TestBoolPtr(t *testing.T) {
 }
 
 func TestStringPtr(t *testing.T) {
-	p := stringPtr("hello")
+	p := StringPtr("hello")
 	if p == nil || *p != "hello" {
 		t.Error("expected non-nil pointer to 'hello'")
-	}
-	p2 := stringPtr("")
-	if p2 != nil {
-		t.Error("expected nil for empty string")
 	}
 }
 
@@ -292,10 +286,10 @@ func TestCloudSpaceFromResponse(t *testing.T) {
 	if cs.Name != "my-cs" {
 		t.Errorf("expected Name=my-cs, got %s", cs.Name)
 	}
-	if cs.GpuEnabled == nil || !*cs.GpuEnabled {
+	if !cs.GpuEnabled {
 		t.Error("expected GpuEnabled=true")
 	}
-	if cs.HAControlPlane == nil || !*cs.HAControlPlane {
+	if !cs.HAControlPlane {
 		t.Error("expected HAControlPlane=true")
 	}
 	if cs.KubernetesVersion != "1.31" {
@@ -322,16 +316,12 @@ func TestUpdateSpotNodePool_AutoscalingNil(t *testing.T) {
 
 	client := newTestClient(server.URL)
 
-	pool := SpotNodePool{
-		Name:        "test-pool",
-		Org:         "test-org",
-		Cloudspace:  "test-cs",
-		ServerClass: "test-sc",
-		Desired:     IntPtr(3),
-		Autoscaling: nil,
+	opts := SpotNodePoolUpdateOptions{
+		Name:    "test-pool",
+		Desired: IntPtr(3),
 	}
 
-	err := client.UpdateSpotNodePool(context.Background(), "test-org", pool)
+	err := client.UpdateSpotNodePool(context.Background(), "test-org", opts)
 	if err != nil {
 		t.Fatalf("UpdateSpotNodePool returned error: %v", err)
 	}
@@ -364,12 +354,9 @@ func TestUpdateSpotNodePool_AutoscalingSet(t *testing.T) {
 
 	client := newTestClient(server.URL)
 
-	pool := SpotNodePool{
-		Name:        "test-pool",
-		Org:         "test-org",
-		Cloudspace:  "test-cs",
-		ServerClass: "test-sc",
-		Desired:     IntPtr(3),
+	opts := SpotNodePoolUpdateOptions{
+		Name:    "test-pool",
+		Desired: IntPtr(3),
 		Autoscaling: &Autoscaling{
 			Enabled:  true,
 			MinNodes: int64(0),
@@ -377,7 +364,7 @@ func TestUpdateSpotNodePool_AutoscalingSet(t *testing.T) {
 		},
 	}
 
-	err := client.UpdateSpotNodePool(context.Background(), "test-org", pool)
+	err := client.UpdateSpotNodePool(context.Background(), "test-org", opts)
 	if err != nil {
 		t.Fatalf("UpdateSpotNodePool returned error: %v", err)
 	}
@@ -417,16 +404,12 @@ func TestUpdateOnDemandNodePool_AutoscalingNil(t *testing.T) {
 
 	client := newTestClient(server.URL)
 
-	pool := OnDemandNodePool{
-		Name:        "test-pool",
-		Org:         "test-org",
-		Cloudspace:  "test-cs",
-		ServerClass: "test-sc",
-		Desired:     IntPtr(2),
-		Autoscaling: nil,
+	opts := OnDemandNodePoolUpdateOptions{
+		Name:    "test-pool",
+		Desired: IntPtr(2),
 	}
 
-	err := client.UpdateOnDemandNodePool(context.Background(), "test-org", pool)
+	err := client.UpdateOnDemandNodePool(context.Background(), "test-org", opts)
 	if err != nil {
 		t.Fatalf("UpdateOnDemandNodePool returned error: %v", err)
 	}
@@ -472,5 +455,83 @@ func TestAutoscalingTypeConsistency(t *testing.T) {
 				t.Errorf("Autoscaling.%s: expected int64, got %v", f.Name, f.Type)
 			}
 		}
+	}
+}
+
+func TestCreateSpotNodePool_NilAutoscaling(t *testing.T) {
+	client := newTestClient("")
+	pool := SpotNodePool{
+		Name:        "test-pool",
+		Org:         "test-org",
+		Cloudspace:  "test-cs",
+		ServerClass: "test-sc",
+		Desired:     1,
+		BidPrice:    "$0.08",
+		Autoscaling: nil,
+	}
+	err := client.CreateSpotNodePool(context.Background(), "test-org", pool)
+	if err == nil {
+		t.Fatal("expected error when Autoscaling is nil, got nil")
+	}
+	if err.Error() != "autoscaling configuration is required for spot node pool creation" {
+		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+func TestCreateSpotNodePool_ZeroDesired(t *testing.T) {
+	client := newTestClient("")
+	pool := SpotNodePool{
+		Name:        "test-pool",
+		Org:         "test-org",
+		Cloudspace:  "test-cs",
+		ServerClass: "test-sc",
+		Desired:     0,
+		BidPrice:    "$0.08",
+		Autoscaling: &Autoscaling{Enabled: true, MinNodes: 1, MaxNodes: 5},
+	}
+	err := client.CreateSpotNodePool(context.Background(), "test-org", pool)
+	if err == nil {
+		t.Fatal("expected error when Desired is 0, got nil")
+	}
+	if err.Error() != "desired count must be positive for spot node pool creation" {
+		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+func TestCreateOnDemandNodePool_NilAutoscaling(t *testing.T) {
+	client := newTestClient("")
+	pool := OnDemandNodePool{
+		Name:        "test-pool",
+		Org:         "test-org",
+		Cloudspace:  "test-cs",
+		ServerClass: "test-sc",
+		Desired:     1,
+		Autoscaling: nil,
+	}
+	err := client.CreateOnDemandNodePool(context.Background(), "test-org", pool)
+	if err == nil {
+		t.Fatal("expected error when Autoscaling is nil, got nil")
+	}
+	if err.Error() != "autoscaling configuration is required for on-demand node pool creation" {
+		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+func TestCreateOnDemandNodePool_ZeroDesired(t *testing.T) {
+	client := newTestClient("")
+	pool := OnDemandNodePool{
+		Name:        "test-pool",
+		Org:         "test-org",
+		Cloudspace:  "test-cs",
+		ServerClass: "test-sc",
+		Desired:     0,
+		Autoscaling: &Autoscaling{Enabled: true, MinNodes: 1, MaxNodes: 5},
+	}
+	err := client.CreateOnDemandNodePool(context.Background(), "test-org", pool)
+	if err == nil {
+		t.Fatal("expected error when Desired is 0, got nil")
+	}
+	if err.Error() != "desired count must be positive for on-demand node pool creation" {
+		t.Errorf("unexpected error message: %v", err)
 	}
 }

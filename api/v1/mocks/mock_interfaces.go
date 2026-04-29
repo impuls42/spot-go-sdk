@@ -154,18 +154,18 @@ func (mr *MockCloudspaceAPIMockRecorder) ListCloudspaces(ctx, org any) *gomock.C
 }
 
 // UpdateCloudspace mocks base method.
-func (m *MockCloudspaceAPI) UpdateCloudspace(ctx context.Context, org string, cs rxtspot.CloudSpace) (*rxtspot.CloudSpace, error) {
+func (m *MockCloudspaceAPI) UpdateCloudspace(ctx context.Context, org string, opts rxtspot.CloudSpaceUpdateOptions) (*rxtspot.CloudSpace, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateCloudspace", ctx, org, cs)
+	ret := m.ctrl.Call(m, "UpdateCloudspace", ctx, org, opts)
 	ret0, _ := ret[0].(*rxtspot.CloudSpace)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // UpdateCloudspace indicates an expected call of UpdateCloudspace.
-func (mr *MockCloudspaceAPIMockRecorder) UpdateCloudspace(ctx, org, cs any) *gomock.Call {
+func (mr *MockCloudspaceAPIMockRecorder) UpdateCloudspace(ctx, org, opts any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateCloudspace", reflect.TypeOf((*MockCloudspaceAPI)(nil).UpdateCloudspace), ctx, org, cs)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateCloudspace", reflect.TypeOf((*MockCloudspaceAPI)(nil).UpdateCloudspace), ctx, org, opts)
 }
 
 // MockSpotNodePoolAPI is a mock of SpotNodePoolAPI interface.
@@ -251,17 +251,17 @@ func (mr *MockSpotNodePoolAPIMockRecorder) ListSpotNodePools(ctx, org, cloudspac
 }
 
 // UpdateSpotNodePool mocks base method.
-func (m *MockSpotNodePoolAPI) UpdateSpotNodePool(ctx context.Context, org string, pool rxtspot.SpotNodePool) error {
+func (m *MockSpotNodePoolAPI) UpdateSpotNodePool(ctx context.Context, org string, opts rxtspot.SpotNodePoolUpdateOptions) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateSpotNodePool", ctx, org, pool)
+	ret := m.ctrl.Call(m, "UpdateSpotNodePool", ctx, org, opts)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // UpdateSpotNodePool indicates an expected call of UpdateSpotNodePool.
-func (mr *MockSpotNodePoolAPIMockRecorder) UpdateSpotNodePool(ctx, org, pool any) *gomock.Call {
+func (mr *MockSpotNodePoolAPIMockRecorder) UpdateSpotNodePool(ctx, org, opts any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSpotNodePool", reflect.TypeOf((*MockSpotNodePoolAPI)(nil).UpdateSpotNodePool), ctx, org, pool)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSpotNodePool", reflect.TypeOf((*MockSpotNodePoolAPI)(nil).UpdateSpotNodePool), ctx, org, opts)
 }
 
 // MockOnDemandNodePoolAPI is a mock of OnDemandNodePoolAPI interface.
@@ -347,17 +347,17 @@ func (mr *MockOnDemandNodePoolAPIMockRecorder) ListOnDemandNodePools(ctx, org, c
 }
 
 // UpdateOnDemandNodePool mocks base method.
-func (m *MockOnDemandNodePoolAPI) UpdateOnDemandNodePool(ctx context.Context, org string, pool rxtspot.OnDemandNodePool) error {
+func (m *MockOnDemandNodePoolAPI) UpdateOnDemandNodePool(ctx context.Context, org string, opts rxtspot.OnDemandNodePoolUpdateOptions) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateOnDemandNodePool", ctx, org, pool)
+	ret := m.ctrl.Call(m, "UpdateOnDemandNodePool", ctx, org, opts)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // UpdateOnDemandNodePool indicates an expected call of UpdateOnDemandNodePool.
-func (mr *MockOnDemandNodePoolAPIMockRecorder) UpdateOnDemandNodePool(ctx, org, pool any) *gomock.Call {
+func (mr *MockOnDemandNodePoolAPIMockRecorder) UpdateOnDemandNodePool(ctx, org, opts any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateOnDemandNodePool", reflect.TypeOf((*MockOnDemandNodePoolAPI)(nil).UpdateOnDemandNodePool), ctx, org, pool)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateOnDemandNodePool", reflect.TypeOf((*MockOnDemandNodePoolAPI)(nil).UpdateOnDemandNodePool), ctx, org, opts)
 }
 
 // MockSpotRegionsAPI is a mock of SpotRegionsAPI interface.
@@ -942,44 +942,44 @@ func (mr *MockSpotAPIMockRecorder) ListSpotNodePools(ctx, org, cloudspace any) *
 }
 
 // UpdateCloudspace mocks base method.
-func (m *MockSpotAPI) UpdateCloudspace(ctx context.Context, org string, cs rxtspot.CloudSpace) (*rxtspot.CloudSpace, error) {
+func (m *MockSpotAPI) UpdateCloudspace(ctx context.Context, org string, opts rxtspot.CloudSpaceUpdateOptions) (*rxtspot.CloudSpace, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateCloudspace", ctx, org, cs)
+	ret := m.ctrl.Call(m, "UpdateCloudspace", ctx, org, opts)
 	ret0, _ := ret[0].(*rxtspot.CloudSpace)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // UpdateCloudspace indicates an expected call of UpdateCloudspace.
-func (mr *MockSpotAPIMockRecorder) UpdateCloudspace(ctx, org, cs any) *gomock.Call {
+func (mr *MockSpotAPIMockRecorder) UpdateCloudspace(ctx, org, opts any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateCloudspace", reflect.TypeOf((*MockSpotAPI)(nil).UpdateCloudspace), ctx, org, cs)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateCloudspace", reflect.TypeOf((*MockSpotAPI)(nil).UpdateCloudspace), ctx, org, opts)
 }
 
 // UpdateOnDemandNodePool mocks base method.
-func (m *MockSpotAPI) UpdateOnDemandNodePool(ctx context.Context, org string, pool rxtspot.OnDemandNodePool) error {
+func (m *MockSpotAPI) UpdateOnDemandNodePool(ctx context.Context, org string, opts rxtspot.OnDemandNodePoolUpdateOptions) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateOnDemandNodePool", ctx, org, pool)
+	ret := m.ctrl.Call(m, "UpdateOnDemandNodePool", ctx, org, opts)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // UpdateOnDemandNodePool indicates an expected call of UpdateOnDemandNodePool.
-func (mr *MockSpotAPIMockRecorder) UpdateOnDemandNodePool(ctx, org, pool any) *gomock.Call {
+func (mr *MockSpotAPIMockRecorder) UpdateOnDemandNodePool(ctx, org, opts any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateOnDemandNodePool", reflect.TypeOf((*MockSpotAPI)(nil).UpdateOnDemandNodePool), ctx, org, pool)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateOnDemandNodePool", reflect.TypeOf((*MockSpotAPI)(nil).UpdateOnDemandNodePool), ctx, org, opts)
 }
 
 // UpdateSpotNodePool mocks base method.
-func (m *MockSpotAPI) UpdateSpotNodePool(ctx context.Context, org string, pool rxtspot.SpotNodePool) error {
+func (m *MockSpotAPI) UpdateSpotNodePool(ctx context.Context, org string, opts rxtspot.SpotNodePoolUpdateOptions) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateSpotNodePool", ctx, org, pool)
+	ret := m.ctrl.Call(m, "UpdateSpotNodePool", ctx, org, opts)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // UpdateSpotNodePool indicates an expected call of UpdateSpotNodePool.
-func (mr *MockSpotAPIMockRecorder) UpdateSpotNodePool(ctx, org, pool any) *gomock.Call {
+func (mr *MockSpotAPIMockRecorder) UpdateSpotNodePool(ctx, org, opts any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSpotNodePool", reflect.TypeOf((*MockSpotAPI)(nil).UpdateSpotNodePool), ctx, org, pool)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSpotNodePool", reflect.TypeOf((*MockSpotAPI)(nil).UpdateSpotNodePool), ctx, org, opts)
 }

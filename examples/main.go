@@ -39,7 +39,7 @@ func createCloudspace(ctx context.Context, spotClient *v1.RackspaceSpotClient) {
 		Org:         "test-sdk-org",
 		Cloudspace:  "sdk-cloudspace",
 		ServerClass: "ch.vs1.large-dfw",
-		Desired:     v1.IntPtr(1),
+		Desired:     1,
 		CustomAnnotations: map[string]string{
 			"example.com/annotation": "value",
 		},

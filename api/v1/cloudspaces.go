@@ -70,14 +70,8 @@ func (c *RackspaceSpotClient) CreateCloudspace(ctx context.Context, cs CloudSpac
 		return fmt.Errorf("organization '%s' not found", cs.Org)
 	}
 
-	gpuEnabled := BoolPtr(false)
-	if cs.GpuEnabled != nil {
-		gpuEnabled = cs.GpuEnabled
-	}
-	haControlPlane := false
-	if cs.HAControlPlane != nil {
-		haControlPlane = *cs.HAControlPlane
-	}
+	gpuEnabled := cs.GpuEnabled
+	haControlPlane := cs.HAControlPlane
 
 	cloudspaceCreateRequestBody := CloudSpaceCreateRequestBody{
 		APIVersion: "ngpc.rxt.io/v1",
@@ -108,7 +102,7 @@ func (c *RackspaceSpotClient) CreateCloudspace(ctx context.Context, cs CloudSpac
 			CNI:               cs.CNI,
 			KubernetesVersion: cs.KubernetesVersion,
 			HAControlPlane:    haControlPlane,
-			GpuEnabled:        *gpuEnabled,
+			GpuEnabled:        gpuEnabled,
 		},
 	}
 
@@ -188,20 +182,20 @@ func (c *RackspaceSpotClient) GetCloudspace(ctx context.Context, org, name strin
 // Only the following fields are mutable via PATCH:
 // kubernetesVersion, webhook (preemptionWebhookURL), cni,
 // HAControlPlane, and gpuEnabled. At least one mutable field must be set.
-func (c *RackspaceSpotClient) UpdateCloudspace(ctx context.Context, org string, cs CloudSpace) (*CloudSpace, error) {
+func (c *RackspaceSpotClient) UpdateCloudspace(ctx context.Context, org string, opts CloudSpaceUpdateOptions) (*CloudSpace, error) {
 	if err := ValidateOrgName(org); err != nil {
 		return nil, fmt.Errorf("invalid organization name: %w", err)
 	}
-	if err := ValidateResourceName(cs.Name); err != nil {
+	if err := ValidateResourceName(opts.Name); err != nil {
 		return nil, fmt.Errorf("invalid cloudspace name: %w", err)
 	}
 
 	spec := cloudspaceUpdateSpec{
-		KubernetesVersion: stringPtr(cs.KubernetesVersion),
-		Webhook:           stringPtr(cs.PreemptionWebhookURL),
-		CNI:               stringPtr(cs.CNI),
-		HAControlPlane:    cs.HAControlPlane,
-		GpuEnabled:        cs.GpuEnabled,
+		KubernetesVersion: opts.KubernetesVersion,
+		Webhook:           opts.PreemptionWebhookURL,
+		CNI:               opts.CNI,
+		HAControlPlane:    opts.HAControlPlane,
+		GpuEnabled:        opts.GpuEnabled,
 	}
 	if spec == (cloudspaceUpdateSpec{}) {
 		return nil, errors.New("update requires at least one mutable field: kubernetesVersion, preemptionWebhookURL, cni, HAControlPlane, or gpuEnabled")
@@ -209,13 +203,13 @@ func (c *RackspaceSpotClient) UpdateCloudspace(ctx context.Context, org string, 
 
 	exists, orgID, err := c.getOrgIDIFExists(ctx, org)
 	if err != nil {
-		return nil, fmt.Errorf("invalid organization: %w", err)
+		return nil, c.handleAPIError(err, "organization", org, "find")
 	}
 	if !exists {
 		return nil, fmt.Errorf("organization '%s' not found", org)
 	}
 
-	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/cloudspaces/%s", c.BaseURL, orgID, cs.Name)
+	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/cloudspaces/%s", c.BaseURL, orgID, opts.Name)
 	updateBody := cloudspaceUpdateRequestBody{Spec: spec}
 
 	body, err := json.Marshal(updateBody)
@@ -226,16 +220,16 @@ func (c *RackspaceSpotClient) UpdateCloudspace(ctx context.Context, org string, 
 	var resp cloudSpaceGetResponse
 	err = c.doRequest(ctx, http.MethodPatch, url, body, c.authHeader(), &resp)
 	if err != nil {
-		return nil, c.handleAPIError(err, "cloudspace", cs.Name, "update")
+		return nil, c.handleAPIError(err, "cloudspace", opts.Name, "update")
 	}
 
 	spotNodePools, err := c.ListSpotNodePools(ctx, org, resp.Metadata.Name)
 	if err != nil {
-		return nil, c.handleAPIError(err, "spot node pool", cs.Name, "list for cloudspace "+resp.Metadata.Name)
+		return nil, c.handleAPIError(err, "spot node pool", opts.Name, "list for cloudspace "+resp.Metadata.Name)
 	}
 	onDemandNodePools, err := c.ListOnDemandNodePools(ctx, org, resp.Metadata.Name)
 	if err != nil {
-		return nil, c.handleAPIError(err, "on-demand node pool", cs.Name, "list for cloudspace "+resp.Metadata.Name)
+		return nil, c.handleAPIError(err, "on-demand node pool", opts.Name, "list for cloudspace "+resp.Metadata.Name)
 	}
 
 	updated := cloudSpaceFromResponse(org, &resp, spotNodePools, onDemandNodePools)
@@ -249,8 +243,8 @@ func cloudSpaceFromResponse(org string, resp *cloudSpaceGetResponse, spotNodePoo
 		CreationTimestamp:    resp.Metadata.CreationTimestamp,
 		CNI:                  resp.Spec.CNI,
 		DeploymentType:       resp.Spec.DeploymentType,
-		GpuEnabled:           BoolPtr(resp.Spec.GpuEnabled),
-		HAControlPlane:       BoolPtr(resp.Spec.HAControlPlane),
+GpuEnabled:           resp.Spec.GpuEnabled,
+	HAControlPlane:       resp.Spec.HAControlPlane,
 		KubernetesVersion:    resp.Spec.KubernetesVersion,
 		Region:               resp.Spec.Region,
 		PreemptionWebhookURL: resp.Spec.Webhook,
@@ -267,12 +261,7 @@ func BoolPtr(b bool) *bool { return &b }
 
 func IntPtr(i int) *int { return &i }
 
-func stringPtr(s string) *string {
-	if s == "" {
-		return nil
-	}
-	return &s
-}
+func StringPtr(s string) *string { return &s }
 
 func (c *RackspaceSpotClient) GetCloudspaceConfig(ctx context.Context, namespace, name string) (string, error) {
 	if err := ValidateOrgName(namespace); err != nil {
