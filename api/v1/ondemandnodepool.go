@@ -60,11 +60,7 @@ func (c *RackspaceSpotClient) ListOnDemandNodePools(ctx context.Context, org, cl
 			WonCount:             item.Status.ReservedCount,
 			Status:               item.Status.ReservedStatus,
 			OnDemandPricePerHour: onDemandPoolcost,
-			Autoscaling: struct {
-				Enabled  bool `json:"enabled" yaml:"enabled"`
-				MinNodes int  `json:"minNodes" yaml:"minNodes"`
-				MaxNodes int  `json:"maxNodes" yaml:"maxNodes"`
-			}{
+			Autoscaling: &Autoscaling{
 				Enabled:  item.Spec.Autoscaling.Enabled,
 				MinNodes: item.Spec.Autoscaling.MinNodes,
 				MaxNodes: item.Spec.Autoscaling.MaxNodes,
@@ -118,7 +114,7 @@ func (c *RackspaceSpotClient) CreateOnDemandNodePool(ctx context.Context, org st
 				CustomLabels:      pool.CustomLabels,
 				CustomTaints:      pool.CustomTaints,
 			},
-			Autoscaling: AutoscalingAny{
+			Autoscaling: autoscalingWire{
 				Enabled:  pool.Autoscaling.Enabled,
 				MinNodes: pool.Autoscaling.MinNodes,
 				MaxNodes: pool.Autoscaling.MaxNodes,
@@ -205,11 +201,7 @@ func (c *RackspaceSpotClient) GetOnDemandNodePool(ctx context.Context, org, name
 		WonCount:             interm.Status.ReservedCount,
 		Status:               interm.Status.ReservedStatus,
 		OnDemandPricePerHour: serverClass.OnDemandPricePerHour,
-		Autoscaling: struct {
-			Enabled  bool `json:"enabled" yaml:"enabled"`
-			MinNodes int  `json:"minNodes" yaml:"minNodes"`
-			MaxNodes int  `json:"maxNodes" yaml:"maxNodes"`
-		}{
+		Autoscaling: &Autoscaling{
 			Enabled:  interm.Spec.Autoscaling.Enabled,
 			MinNodes: interm.Spec.Autoscaling.MinNodes,
 			MaxNodes: interm.Spec.Autoscaling.MaxNodes,
@@ -238,20 +230,22 @@ func (c *RackspaceSpotClient) UpdateOnDemandNodePool(ctx context.Context, org st
 	}
 	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/ondemandnodepools/%s", c.BaseURL, orgID, pool.Name)
 
-    // Only include mutable fields in the update request
-    updateBody := OnDemandNodePoolUpdateRequestBody{
-        Spec: OnDemandNodePoolUpdateSpec{
-            Desired:           pool.Desired,
-            CustomAnnotations: pool.CustomAnnotations,
-            CustomLabels:      pool.CustomLabels,
-            CustomTaints:      pool.CustomTaints,
-            Autoscaling: AutoscalingInt64Update{
-                Enabled:  pool.Autoscaling.Enabled,
-                MinNodes: int64(pool.Autoscaling.MinNodes),
-                MaxNodes: int64(pool.Autoscaling.MaxNodes),
-            },
-        },
-    }
+	// Only include mutable fields in the update request
+	updateBody := OnDemandNodePoolUpdateRequestBody{
+		Spec: OnDemandNodePoolUpdateSpec{
+			Desired:           pool.Desired,
+			CustomAnnotations: pool.CustomAnnotations,
+			CustomLabels:      pool.CustomLabels,
+			CustomTaints:      pool.CustomTaints,
+		},
+	}
+	if pool.Autoscaling != nil {
+		updateBody.Spec.Autoscaling = &autoscalingWirePatch{
+			Enabled:  &pool.Autoscaling.Enabled,
+			MinNodes: &pool.Autoscaling.MinNodes,
+			MaxNodes: &pool.Autoscaling.MaxNodes,
+		}
+	}
 
 	body, err := json.Marshal(updateBody)
 	if err != nil {

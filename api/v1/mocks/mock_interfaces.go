@@ -153,6 +153,21 @@ func (mr *MockCloudspaceAPIMockRecorder) ListCloudspaces(ctx, org any) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListCloudspaces", reflect.TypeOf((*MockCloudspaceAPI)(nil).ListCloudspaces), ctx, org)
 }
 
+// UpdateCloudspace mocks base method.
+func (m *MockCloudspaceAPI) UpdateCloudspace(ctx context.Context, org string, cs rxtspot.CloudSpace) (*rxtspot.CloudSpace, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateCloudspace", ctx, org, cs)
+	ret0, _ := ret[0].(*rxtspot.CloudSpace)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateCloudspace indicates an expected call of UpdateCloudspace.
+func (mr *MockCloudspaceAPIMockRecorder) UpdateCloudspace(ctx, org, cs any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateCloudspace", reflect.TypeOf((*MockCloudspaceAPI)(nil).UpdateCloudspace), ctx, org, cs)
+}
+
 // MockSpotNodePoolAPI is a mock of SpotNodePoolAPI interface.
 type MockSpotNodePoolAPI struct {
 	ctrl     *gomock.Controller
@@ -478,33 +493,31 @@ func (m *MockSpotPricingAPI) EXPECT() *MockSpotPricingAPIMockRecorder {
 }
 
 // GetMarketPriceForServerClass mocks base method.
-func (m *MockSpotPricingAPI) GetMarketPriceForServerClass(ctx context.Context, serverClass string) (string, error) {
+func (m *MockSpotPricingAPI) GetMarketPriceForServerClass(ctx context.Context, serverClassStatus *rxtspot.ServerClassStatus) string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMarketPriceForServerClass", ctx, serverClass)
+	ret := m.ctrl.Call(m, "GetMarketPriceForServerClass", ctx, serverClassStatus)
 	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	return ret0
 }
 
 // GetMarketPriceForServerClass indicates an expected call of GetMarketPriceForServerClass.
-func (mr *MockSpotPricingAPIMockRecorder) GetMarketPriceForServerClass(ctx, serverClass any) *gomock.Call {
+func (mr *MockSpotPricingAPIMockRecorder) GetMarketPriceForServerClass(ctx, serverClassStatus any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMarketPriceForServerClass", reflect.TypeOf((*MockSpotPricingAPI)(nil).GetMarketPriceForServerClass), ctx, serverClass)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMarketPriceForServerClass", reflect.TypeOf((*MockSpotPricingAPI)(nil).GetMarketPriceForServerClass), ctx, serverClassStatus)
 }
 
 // GetMinimumBidPriceForServerClass mocks base method.
-func (m *MockSpotPricingAPI) GetMinimumBidPriceForServerClass(ctx context.Context, serverClass string) (string, error) {
+func (m *MockSpotPricingAPI) GetMinimumBidPriceForServerClass(ctx context.Context, serverClassSpec *rxtspot.ServerClassSpec) string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMinimumBidPriceForServerClass", ctx, serverClass)
+	ret := m.ctrl.Call(m, "GetMinimumBidPriceForServerClass", ctx, serverClassSpec)
 	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	return ret0
 }
 
 // GetMinimumBidPriceForServerClass indicates an expected call of GetMinimumBidPriceForServerClass.
-func (mr *MockSpotPricingAPIMockRecorder) GetMinimumBidPriceForServerClass(ctx, serverClass any) *gomock.Call {
+func (mr *MockSpotPricingAPIMockRecorder) GetMinimumBidPriceForServerClass(ctx, serverClassSpec any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinimumBidPriceForServerClass", reflect.TypeOf((*MockSpotPricingAPI)(nil).GetMinimumBidPriceForServerClass), ctx, serverClass)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinimumBidPriceForServerClass", reflect.TypeOf((*MockSpotPricingAPI)(nil).GetMinimumBidPriceForServerClass), ctx, serverClassSpec)
 }
 
 // GetPriceDetails mocks base method.
@@ -706,33 +719,31 @@ func (mr *MockSpotAPIMockRecorder) GetCloudspaceConfig(ctx, org, name any) *gomo
 }
 
 // GetMarketPriceForServerClass mocks base method.
-func (m *MockSpotAPI) GetMarketPriceForServerClass(ctx context.Context, serverClass string) (string, error) {
+func (m *MockSpotAPI) GetMarketPriceForServerClass(ctx context.Context, serverClassStatus *rxtspot.ServerClassStatus) string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMarketPriceForServerClass", ctx, serverClass)
+	ret := m.ctrl.Call(m, "GetMarketPriceForServerClass", ctx, serverClassStatus)
 	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	return ret0
 }
 
 // GetMarketPriceForServerClass indicates an expected call of GetMarketPriceForServerClass.
-func (mr *MockSpotAPIMockRecorder) GetMarketPriceForServerClass(ctx, serverClass any) *gomock.Call {
+func (mr *MockSpotAPIMockRecorder) GetMarketPriceForServerClass(ctx, serverClassStatus any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMarketPriceForServerClass", reflect.TypeOf((*MockSpotAPI)(nil).GetMarketPriceForServerClass), ctx, serverClass)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMarketPriceForServerClass", reflect.TypeOf((*MockSpotAPI)(nil).GetMarketPriceForServerClass), ctx, serverClassStatus)
 }
 
 // GetMinimumBidPriceForServerClass mocks base method.
-func (m *MockSpotAPI) GetMinimumBidPriceForServerClass(ctx context.Context, serverClass string) (string, error) {
+func (m *MockSpotAPI) GetMinimumBidPriceForServerClass(ctx context.Context, serverClassSpec *rxtspot.ServerClassSpec) string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMinimumBidPriceForServerClass", ctx, serverClass)
+	ret := m.ctrl.Call(m, "GetMinimumBidPriceForServerClass", ctx, serverClassSpec)
 	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	return ret0
 }
 
 // GetMinimumBidPriceForServerClass indicates an expected call of GetMinimumBidPriceForServerClass.
-func (mr *MockSpotAPIMockRecorder) GetMinimumBidPriceForServerClass(ctx, serverClass any) *gomock.Call {
+func (mr *MockSpotAPIMockRecorder) GetMinimumBidPriceForServerClass(ctx, serverClassSpec any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinimumBidPriceForServerClass", reflect.TypeOf((*MockSpotAPI)(nil).GetMinimumBidPriceForServerClass), ctx, serverClass)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMinimumBidPriceForServerClass", reflect.TypeOf((*MockSpotAPI)(nil).GetMinimumBidPriceForServerClass), ctx, serverClassSpec)
 }
 
 // GetOnDemandNodePool mocks base method.
@@ -928,6 +939,21 @@ func (m *MockSpotAPI) ListSpotNodePools(ctx context.Context, org, cloudspace str
 func (mr *MockSpotAPIMockRecorder) ListSpotNodePools(ctx, org, cloudspace any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSpotNodePools", reflect.TypeOf((*MockSpotAPI)(nil).ListSpotNodePools), ctx, org, cloudspace)
+}
+
+// UpdateCloudspace mocks base method.
+func (m *MockSpotAPI) UpdateCloudspace(ctx context.Context, org string, cs rxtspot.CloudSpace) (*rxtspot.CloudSpace, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateCloudspace", ctx, org, cs)
+	ret0, _ := ret[0].(*rxtspot.CloudSpace)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateCloudspace indicates an expected call of UpdateCloudspace.
+func (mr *MockSpotAPIMockRecorder) UpdateCloudspace(ctx, org, cs any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateCloudspace", reflect.TypeOf((*MockSpotAPI)(nil).UpdateCloudspace), ctx, org, cs)
 }
 
 // UpdateOnDemandNodePool mocks base method.

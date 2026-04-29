@@ -54,14 +54,10 @@ func (c *RackspaceSpotClient) ListSpotNodePools(ctx context.Context, org, clouds
 			BidPrice:          "$" + item.Spec.BidPrice,
 			WonCount:          item.Status.WonCount,
 			Status:            item.Status.BidStatus,
-			Autoscaling: struct {
-				Enabled  bool  `json:"enabled" yaml:"enabled"`
-				MinNodes int64 `json:"minNodes" yaml:"minNodes"`
-				MaxNodes int64 `json:"maxNodes" yaml:"maxNodes"`
-			}{
+			Autoscaling: &Autoscaling{
 				Enabled:  item.Spec.Autoscaling.Enabled,
-				MinNodes: int64(item.Spec.Autoscaling.MinNodes),
-				MaxNodes: int64(item.Spec.Autoscaling.MaxNodes),
+				MinNodes: item.Spec.Autoscaling.MinNodes,
+				MaxNodes: item.Spec.Autoscaling.MaxNodes,
 			},
 		})
 	}
@@ -117,7 +113,7 @@ func (c *RackspaceSpotClient) CreateSpotNodePool(ctx context.Context, org string
 				CustomTaints:      pool.CustomTaints,
 			},
 			BidPrice: pool.BidPrice,
-			Autoscaling: AutoscalingInt64{
+			Autoscaling: autoscalingWire{
 				Enabled:  pool.Autoscaling.Enabled,
 				MinNodes: pool.Autoscaling.MinNodes,
 				MaxNodes: pool.Autoscaling.MaxNodes,
@@ -164,12 +160,14 @@ func (c *RackspaceSpotClient) UpdateSpotNodePool(ctx context.Context, org string
 			CustomAnnotations: pool.CustomAnnotations,
 			CustomLabels:      pool.CustomLabels,
 			CustomTaints:      pool.CustomTaints,
-			Autoscaling: AutoscalingInt64Update{
-				Enabled:  pool.Autoscaling.Enabled,
-				MinNodes: pool.Autoscaling.MinNodes,
-				MaxNodes: pool.Autoscaling.MaxNodes,
-			},
 		},
+	}
+	if pool.Autoscaling != nil {
+		updateBody.Spec.Autoscaling = &autoscalingWirePatch{
+			Enabled:  &pool.Autoscaling.Enabled,
+			MinNodes: &pool.Autoscaling.MinNodes,
+			MaxNodes: &pool.Autoscaling.MaxNodes,
+		}
 	}
 
 	body, err := json.Marshal(updateBody)
@@ -243,14 +241,10 @@ func (c *RackspaceSpotClient) GetSpotNodePool(ctx context.Context, org, name str
 		BidPrice:          "$" + interm.Spec.BidPrice,
 		WonCount:          interm.Status.WonCount,
 		Status:            interm.Status.BidStatus,
-		Autoscaling: struct {
-			Enabled  bool  `json:"enabled" yaml:"enabled"`
-			MinNodes int64 `json:"minNodes" yaml:"minNodes"`
-			MaxNodes int64 `json:"maxNodes" yaml:"maxNodes"`
-		}{
+		Autoscaling: &Autoscaling{
 			Enabled:  interm.Spec.Autoscaling.Enabled,
-			MinNodes: int64(interm.Spec.Autoscaling.MinNodes),
-			MaxNodes: int64(interm.Spec.Autoscaling.MaxNodes),
+			MinNodes: interm.Spec.Autoscaling.MinNodes,
+			MaxNodes: interm.Spec.Autoscaling.MaxNodes,
 		},
 	}, nil
 }

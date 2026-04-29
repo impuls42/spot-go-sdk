@@ -8,11 +8,12 @@ type CloudSpaceList struct {
 
 type CloudSpace struct {
 	Name                 string                    `json:"name" yaml:"name"`
-	Org                  string                    `json:"org" yaml:"org"`
+	Org                  string                    `json:"org,omitempty" yaml:"org,omitempty"`
 	CreationTimestamp    time.Time                 `json:"creationTimestamp,omitempty" yaml:"creationTimestamp,omitempty"`
 	CNI                  string                    `json:"cni,omitempty" yaml:"cni,omitempty"`
 	DeploymentType       string                    `json:"deploymentType,omitempty" yaml:"deploymentType,omitempty"`
-	GpuEnabled           bool                      `json:"gpuEnabled,omitempty" yaml:"gpuEnabled,omitempty"`
+	GpuEnabled           *bool                     `json:"gpuEnabled,omitempty" yaml:"gpuEnabled,omitempty"`
+	HAControlPlane       *bool                     `json:"HAControlPlane,omitempty" yaml:"HAControlPlane,omitempty"`
 	KubernetesVersion    string                    `json:"kubernetesVersion,omitempty" yaml:"kubernetesVersion,omitempty"`
 	Region               string                    `json:"region,omitempty" yaml:"region,omitempty"`
 	PreemptionWebhookURL string                    `json:"preEmptionWebhookURL,omitempty" yaml:"preEmptionWebhookURL,omitempty"`
@@ -36,6 +37,16 @@ type SpotNodePoolList struct {
 	Items []SpotNodePool `json:"spotNodepools" yaml:"spotNodepools"`
 }
 
+// Autoscaling represents node pool autoscaling configuration.
+// When used on a public type (SpotNodePool, OnDemandNodePool) a nil value
+// means "do not modify" in update (PATCH) calls, while a non-nil value
+// replaces the entire autoscaling configuration.
+type Autoscaling struct {
+	Enabled  bool  `json:"enabled" yaml:"enabled"`
+	MinNodes int64 `json:"minNodes" yaml:"minNodes"`
+	MaxNodes int64 `json:"maxNodes" yaml:"maxNodes"`
+}
+
 // SpotNodePool represents a spot node pool configuration
 type SpotNodePool struct {
 	Name              string            `json:"name" yaml:"name"`
@@ -48,13 +59,9 @@ type SpotNodePool struct {
 	CustomAnnotations map[string]string `json:"customAnnotations,omitempty" yaml:"customAnnotations,omitempty"`
 	CustomLabels      map[string]string `json:"customLabels,omitempty" yaml:"customLabels,omitempty"`
 	CustomTaints      []interface{}     `json:"customTaints,omitempty" yaml:"customTaints,omitempty"`
-	Autoscaling       struct {
-		Enabled  bool  `json:"enabled" yaml:"enabled"`
-		MinNodes int64 `json:"minNodes" yaml:"minNodes"`
-		MaxNodes int64 `json:"maxNodes" yaml:"maxNodes"`
-	} `json:"autoscaling" yaml:"autoscaling"`
-	BidPrice string `json:"bidPrice,omitempty" yaml:"bidPrice,omitempty"`
-	Status   string `json:"status,omitempty" yaml:"status,omitempty"`
+	Autoscaling       *Autoscaling      `json:"autoscaling,omitempty" yaml:"autoscaling,omitempty"`
+	BidPrice          string            `json:"bidPrice,omitempty" yaml:"bidPrice,omitempty"`
+	Status            string            `json:"status,omitempty" yaml:"status,omitempty"`
 }
 
 // OnDemandNodePoolList represents a list of on-demand node pools
@@ -75,12 +82,8 @@ type OnDemandNodePool struct {
 	CustomLabels         map[string]string `json:"customLabels,omitempty" yaml:"customLabels,omitempty"`
 	CustomTaints         []interface{}     `json:"customTaints,omitempty" yaml:"customTaints,omitempty"`
 	OnDemandPricePerHour string            `json:"onDemandPricePerHour,omitempty" yaml:"onDemandPricePerHour,omitempty"`
-	Autoscaling          struct {
-		Enabled  bool `json:"enabled" yaml:"enabled"`
-		MinNodes int  `json:"minNodes" yaml:"minNodes"`
-		MaxNodes int  `json:"maxNodes" yaml:"maxNodes"`
-	} `json:"autoscaling" yaml:"autoscaling"`
-	Status string `json:"status,omitempty" yaml:"status,omitempty"`
+	Autoscaling          *Autoscaling      `json:"autoscaling,omitempty" yaml:"autoscaling,omitempty"`
+	Status               string            `json:"status,omitempty" yaml:"status,omitempty"`
 }
 
 type OrganizationList struct {

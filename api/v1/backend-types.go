@@ -14,6 +14,7 @@ type cloudSpaceGetResponse struct {
 		CNI               string   `json:"cni"`
 		DeploymentType    string   `json:"deploymentType"`
 		GpuEnabled        bool     `json:"gpuEnabled"`
+		HAControlPlane    bool     `json:"HAControlPlane"`
 		KubernetesVersion string   `json:"kubernetesVersion"`
 		Region            string   `json:"region"`
 		Type              string   `json:"type"`
@@ -53,21 +54,15 @@ type ResourceMetadataWithTimestamp struct {
 }
 
 // Spot node pool read-only autoscaling and spec
-type SpotNodePoolAutoscalingRO struct {
-	Enabled  bool `json:"enabled"`
-	MaxNodes int  `json:"maxNodes"`
-	MinNodes int  `json:"minNodes"`
-}
-
 type SpotNodePoolSpecReadOnly struct {
-	Autoscaling       SpotNodePoolAutoscalingRO `json:"autoscaling"`
-	BidPrice          string                    `json:"bidPrice"`
-	CloudSpace        string                    `json:"cloudSpace"`
-	CustomAnnotations map[string]string         `json:"customAnnotations"`
-	CustomLabels      map[string]string         `json:"customLabels"`
-	CustomTaints      []interface{}             `json:"customTaints,omitempty"`
-	Desired           int                       `json:"desired"`
-	ServerClass       string                    `json:"serverClass"`
+	Autoscaling       Autoscaling       `json:"autoscaling"`
+	BidPrice          string            `json:"bidPrice"`
+	CloudSpace        string            `json:"cloudSpace"`
+	CustomAnnotations map[string]string `json:"customAnnotations"`
+	CustomLabels      map[string]string `json:"customLabels"`
+	CustomTaints      []interface{}     `json:"customTaints,omitempty"`
+	Desired           int               `json:"desired"`
+	ServerClass       string            `json:"serverClass"`
 }
 
 type SpotNodePoolStatus struct {
@@ -77,20 +72,14 @@ type SpotNodePoolStatus struct {
 }
 
 // OnDemand node pool read-only spec and status
-type OnDemandNodePoolAutoscalingRO struct {
-	Enabled  bool `json:"enabled"`
-	MaxNodes int  `json:"maxNodes"`
-	MinNodes int  `json:"minNodes"`
-}
-
 type OnDemandNodePoolSpecReadOnly struct {
-	Autoscaling       OnDemandNodePoolAutoscalingRO `json:"autoscaling"`
-	CloudSpace        string                        `json:"cloudSpace"`
-	CustomAnnotations map[string]string             `json:"customAnnotations,omitempty"`
-	CustomLabels      map[string]string             `json:"customLabels,omitempty"`
-	CustomTaints      []interface{}                 `json:"customTaints,omitempty"`
-	Desired           int                           `json:"desired"`
-	ServerClass       string                        `json:"serverClass"`
+	Autoscaling       Autoscaling       `json:"autoscaling"`
+	CloudSpace        string            `json:"cloudSpace"`
+	CustomAnnotations map[string]string `json:"customAnnotations,omitempty"`
+	CustomLabels      map[string]string `json:"customLabels,omitempty"`
+	CustomTaints      []interface{}     `json:"customTaints,omitempty"`
+	Desired           int               `json:"desired"`
+	ServerClass       string            `json:"serverClass"`
 }
 
 type OnDemandNodePoolStatus struct {
@@ -185,6 +174,7 @@ type ObjectMetaWithAnnotations struct {
 	Annotations map[string]string `json:"annotations"`
 }
 
+// CommonNodePoolSpec is the shared spec for node pool create requests.
 type CommonNodePoolSpec struct {
 	ServerClass       string            `json:"serverClass"`
 	Desired           int               `json:"desired"`
@@ -194,22 +184,26 @@ type CommonNodePoolSpec struct {
 	CustomTaints      []interface{}     `json:"customTaints,omitempty"`
 }
 
-type AutoscalingInt64 struct {
+// autoscalingWire is used in create request bodies where all fields must be present.
+type autoscalingWire struct {
 	Enabled  bool  `json:"enabled"`
 	MinNodes int64 `json:"minNodes"`
 	MaxNodes int64 `json:"maxNodes"`
 }
 
-type AutoscalingAny struct {
-	Enabled  bool `json:"enabled"`
-	MinNodes any  `json:"minNodes"`
-	MaxNodes any  `json:"maxNodes"`
+// autoscalingWirePatch is used in PATCH (merge-update) request bodies.
+// Pointer fields with omitempty allow callers to leave individual fields
+// unchanged: nil means "don't touch", non-nil means "set to this value".
+type autoscalingWirePatch struct {
+	Enabled  *bool  `json:"enabled,omitempty"`
+	MinNodes *int64 `json:"minNodes,omitempty"`
+	MaxNodes *int64 `json:"maxNodes,omitempty"`
 }
 
 type SpotNodePoolSpec struct {
 	CommonNodePoolSpec
-	BidPrice    string           `json:"bidPrice"`
-	Autoscaling AutoscalingInt64 `json:"autoscaling"`
+	BidPrice    string          `json:"bidPrice"`
+	Autoscaling autoscalingWire `json:"autoscaling"`
 }
 
 type SpotNodePoolRequestBody struct {
@@ -245,7 +239,7 @@ type SpotNodePoolListResponse struct {
 
 type OnDemandNodePoolSpec struct {
 	CommonNodePoolSpec
-	Autoscaling AutoscalingAny `json:"autoscaling"`
+	Autoscaling autoscalingWire `json:"autoscaling"`
 }
 
 type OnDemandNodePoolCreateRequestBody struct {
@@ -255,27 +249,21 @@ type OnDemandNodePoolCreateRequestBody struct {
 	Spec       OnDemandNodePoolSpec `json:"spec"`
 }
 
-type AutoscalingInt64Update struct {
-	Enabled  bool  `json:"enabled"`
-	MinNodes int64 `json:"minNodes,omitempty"`
-	MaxNodes int64 `json:"maxNodes,omitempty"`
-}
-
 type SpotNodePoolUpdateSpec struct {
-	Desired           int                    `json:"desired,omitempty"`
-	BidPrice          string                 `json:"bidPrice,omitempty"`
-	CustomAnnotations map[string]string      `json:"customAnnotations,omitempty"`
-	CustomLabels      map[string]string      `json:"customLabels,omitempty"`
-	CustomTaints      []interface{}          `json:"customTaints,omitempty"`
-	Autoscaling       AutoscalingInt64Update `json:"autoscaling"`
+	Desired           int                   `json:"desired,omitempty"`
+	BidPrice          string                `json:"bidPrice,omitempty"`
+	CustomAnnotations map[string]string     `json:"customAnnotations,omitempty"`
+	CustomLabels      map[string]string     `json:"customLabels,omitempty"`
+	CustomTaints      []interface{}         `json:"customTaints,omitempty"`
+	Autoscaling       *autoscalingWirePatch `json:"autoscaling,omitempty"`
 }
 
 type OnDemandNodePoolUpdateSpec struct {
-	Desired           int                    `json:"desired,omitempty"`
-	CustomAnnotations map[string]string      `json:"customAnnotations,omitempty"`
-	CustomLabels      map[string]string      `json:"customLabels,omitempty"`
-	CustomTaints      []interface{}          `json:"customTaints,omitempty"`
-	Autoscaling       AutoscalingInt64Update `json:"autoscaling"`
+	Desired           int                   `json:"desired,omitempty"`
+	CustomAnnotations map[string]string     `json:"customAnnotations,omitempty"`
+	CustomLabels      map[string]string     `json:"customLabels,omitempty"`
+	CustomTaints      []interface{}         `json:"customTaints,omitempty"`
+	Autoscaling       *autoscalingWirePatch `json:"autoscaling,omitempty"`
 }
 
 type SpotNodePoolUpdateRequestBody struct {
@@ -337,4 +325,17 @@ type ListRegionsResponse struct {
 		Metadata   ResourceMetadata `json:"metadata"`
 		Spec       RegionSpec       `json:"spec"`
 	} `json:"items"`
+}
+
+// cloudspaceUpdateSpec contains only the fields that are mutable via PATCH.
+type cloudspaceUpdateSpec struct {
+	KubernetesVersion *string `json:"kubernetesVersion,omitempty"`
+	Webhook           *string `json:"webhook,omitempty"`
+	CNI               *string `json:"cni,omitempty"`
+	HAControlPlane    *bool   `json:"HAControlPlane,omitempty"`
+	GpuEnabled        *bool   `json:"gpuEnabled,omitempty"`
+}
+
+type cloudspaceUpdateRequestBody struct {
+	Spec cloudspaceUpdateSpec `json:"spec"`
 }

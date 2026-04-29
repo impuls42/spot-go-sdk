@@ -3,6 +3,7 @@ package rxtspot
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -41,23 +42,7 @@ func (c *RackspaceSpotClient) ListCloudspaces(ctx context.Context, org string) (
 		if err != nil {
 			return nil, c.handleAPIError(err, "on-demand node pools", "", "list for cloudspace "+cs.Metadata.Name)
 		}
-		finalList.Items = append(finalList.Items, CloudSpace{
-			Name:                 cs.Metadata.Name,
-			Org:                  org,
-			CreationTimestamp:    cs.Metadata.CreationTimestamp,
-			CNI:                  cs.Spec.CNI,
-			DeploymentType:       cs.Spec.DeploymentType,
-			GpuEnabled:           cs.Spec.GpuEnabled,
-			KubernetesVersion:    cs.Spec.KubernetesVersion,
-			Region:               cs.Spec.Region,
-			PreemptionWebhookURL: cs.Spec.Webhook,
-			APIServerEndpoint:    cs.Status.APIServerEndpoint,
-			AssignedServers:      cs.Status.AssignedServers,
-			SpotNodepools:        spotNodePools,
-			OnDemandNodePools:    onDemandNodePools,
-			Status:               cs.Status.Phase,
-			Message:              cs.Status.Reason,
-		})
+		finalList.Items = append(finalList.Items, cloudSpaceFromResponse(org, &cs, spotNodePools, onDemandNodePools))
 	}
 	return &finalList, nil
 }
@@ -83,6 +68,15 @@ func (c *RackspaceSpotClient) CreateCloudspace(ctx context.Context, cs CloudSpac
 	}
 	if !exists {
 		return fmt.Errorf("organization '%s' not found", cs.Org)
+	}
+
+	gpuEnabled := boolPtr(false)
+	if cs.GpuEnabled != nil {
+		gpuEnabled = cs.GpuEnabled
+	}
+	haControlPlane := false
+	if cs.HAControlPlane != nil {
+		haControlPlane = *cs.HAControlPlane
 	}
 
 	cloudspaceCreateRequestBody := CloudSpaceCreateRequestBody{
@@ -113,8 +107,8 @@ func (c *RackspaceSpotClient) CreateCloudspace(ctx context.Context, cs CloudSpac
 			Webhook:           cs.PreemptionWebhookURL,
 			CNI:               cs.CNI,
 			KubernetesVersion: cs.KubernetesVersion,
-			HAControlPlane:    false,
-			GpuEnabled:        cs.GpuEnabled,
+			HAControlPlane:    haControlPlane,
+			GpuEnabled:        *gpuEnabled,
 		},
 	}
 
@@ -171,98 +165,111 @@ func (c *RackspaceSpotClient) GetCloudspace(ctx context.Context, org, name strin
 	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/cloudspaces/%s", c.BaseURL, orgID, name)
 	var interm cloudSpaceGetResponse
 
-	// Pass &interm so doRequest will JSON unmarshal into it
 	err = c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &interm)
 	if err != nil {
 		return nil, c.handleAPIError(err, "cloudspace", name, "get")
 	}
-	// Spot node pools
+
 	spotNodePools, err := c.ListSpotNodePools(ctx, org, interm.Metadata.Name)
 	if err != nil {
 		return nil, c.handleAPIError(err, "spot node pool", name, "list for cloudspace "+interm.Metadata.Name)
 	}
 
-	// OnDemand node pools
 	onDemandNodePools, err := c.ListOnDemandNodePools(ctx, org, interm.Metadata.Name)
 	if err != nil {
 		return nil, c.handleAPIError(err, "on-demand node pool", name, "list for cloudspace "+interm.Metadata.Name)
 	}
 
-	finalList := CloudSpace{
-		Name:                 interm.Metadata.Name,
-		Org:                  org,
-		CreationTimestamp:    interm.Metadata.CreationTimestamp,
-		CNI:                  interm.Spec.CNI,
-		DeploymentType:       interm.Spec.DeploymentType,
-		GpuEnabled:           interm.Spec.GpuEnabled,
-		KubernetesVersion:    interm.Spec.KubernetesVersion,
-		Region:               interm.Spec.Region,
-		PreemptionWebhookURL: interm.Spec.Webhook,
-		APIServerEndpoint:    interm.Status.APIServerEndpoint,
-		AssignedServers:      interm.Status.AssignedServers,
-		SpotNodepools:        spotNodePools,
-		OnDemandNodePools:    onDemandNodePools,
-		Status:               interm.Status.Phase,
-		Message:              interm.Status.Reason,
-	}
-
-	return &finalList, nil
+	result := cloudSpaceFromResponse(org, &interm, spotNodePools, onDemandNodePools)
+	return &result, nil
 }
 
-// UpdateCloudspace updates an existing cloudspace in the given namespace.
-func (c *RackspaceSpotClient) UpdateCloudspace(ctx context.Context, org string, cs CloudSpace) error {
+// UpdateCloudspace updates mutable fields on an existing cloudspace.
+// Only the following fields are mutable via PATCH:
+// kubernetesVersion, webhook (preemptionWebhookURL), cni,
+// HAControlPlane, and gpuEnabled. At least one mutable field must be set.
+func (c *RackspaceSpotClient) UpdateCloudspace(ctx context.Context, org string, cs CloudSpace) (*CloudSpace, error) {
 	if err := ValidateOrgName(org); err != nil {
-		return fmt.Errorf("invalid organization name: %w", err)
+		return nil, fmt.Errorf("invalid organization name: %w", err)
 	}
 	if err := ValidateResourceName(cs.Name); err != nil {
-		return fmt.Errorf("invalid cloudspace name: %w", err)
+		return nil, fmt.Errorf("invalid cloudspace name: %w", err)
+	}
+
+	spec := cloudspaceUpdateSpec{
+		KubernetesVersion: stringPtr(cs.KubernetesVersion),
+		Webhook:           stringPtr(cs.PreemptionWebhookURL),
+		CNI:               stringPtr(cs.CNI),
+		HAControlPlane:    cs.HAControlPlane,
+		GpuEnabled:        cs.GpuEnabled,
+	}
+	if spec == (cloudspaceUpdateSpec{}) {
+		return nil, errors.New("update requires at least one mutable field: kubernetesVersion, preemptionWebhookURL, cni, HAControlPlane, or gpuEnabled")
 	}
 
 	exists, orgID, err := c.getOrgIDIFExists(ctx, org)
 	if err != nil {
-		return fmt.Errorf("invalid organization: %w", err)
+		return nil, fmt.Errorf("invalid organization: %w", err)
 	}
 	if !exists {
-		return fmt.Errorf("organization '%s' not found", org)
+		return nil, fmt.Errorf("organization '%s' not found", org)
 	}
 
 	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/cloudspaces/%s", c.BaseURL, orgID, cs.Name)
-
-	// Build patch body with only the mutable fields provided
-	updateBody := struct {
-		Spec struct {
-			DeploymentType    string `json:"deploymentType,omitempty"`
-			Cloud             string `json:"cloud,omitempty"`
-			Region            string `json:"region,omitempty"`
-			Webhook           string `json:"webhook,omitempty"`
-			CNI               string `json:"cni,omitempty"`
-			KubernetesVersion string `json:"kubernetesVersion,omitempty"`
-			HAControlPlane    *bool  `json:"HAControlPlane,omitempty"`
-			GpuEnabled        *bool  `json:"gpuEnabled,omitempty"`
-		} `json:"spec"`
-	}{}
-
-	// Only set fields that are non-empty/non-zero
-	if cs.KubernetesVersion != "" {
-		updateBody.Spec.KubernetesVersion = cs.KubernetesVersion
-	}
-	if cs.PreemptionWebhookURL != "" {
-		updateBody.Spec.Webhook = cs.PreemptionWebhookURL
-	}
-	if cs.CNI != "" {
-		updateBody.Spec.CNI = cs.CNI
-	}
-	// HAControlPlane and GpuEnabled are booleans, so we can't check for empty
-	// This is intentional - if you want to update them, you should set them on the CloudSpace object
+	updateBody := cloudspaceUpdateRequestBody{Spec: spec}
 
 	body, err := json.Marshal(updateBody)
 	if err != nil {
-		return fmt.Errorf("failed to marshal update body: %w", err)
+		return nil, fmt.Errorf("failed to marshal update body: %w", err)
 	}
 
-	var respBody interface{}
-	err = c.doRequest(ctx, http.MethodPatch, url, body, c.authHeader(), &respBody)
-	return c.handleAPIError(err, "cloudspace", cs.Name, "update")
+	var resp cloudSpaceGetResponse
+	err = c.doRequest(ctx, http.MethodPatch, url, body, c.authHeader(), &resp)
+	if err != nil {
+		return nil, c.handleAPIError(err, "cloudspace", cs.Name, "update")
+	}
+
+	spotNodePools, err := c.ListSpotNodePools(ctx, org, resp.Metadata.Name)
+	if err != nil {
+		return nil, c.handleAPIError(err, "spot node pool", cs.Name, "list for cloudspace "+resp.Metadata.Name)
+	}
+	onDemandNodePools, err := c.ListOnDemandNodePools(ctx, org, resp.Metadata.Name)
+	if err != nil {
+		return nil, c.handleAPIError(err, "on-demand node pool", cs.Name, "list for cloudspace "+resp.Metadata.Name)
+	}
+
+	updated := cloudSpaceFromResponse(org, &resp, spotNodePools, onDemandNodePools)
+	return &updated, nil
+}
+
+func cloudSpaceFromResponse(org string, resp *cloudSpaceGetResponse, spotNodePools []*SpotNodePool, onDemandNodePools []*OnDemandNodePool) CloudSpace {
+	return CloudSpace{
+		Name:                 resp.Metadata.Name,
+		Org:                  org,
+		CreationTimestamp:    resp.Metadata.CreationTimestamp,
+		CNI:                  resp.Spec.CNI,
+		DeploymentType:       resp.Spec.DeploymentType,
+		GpuEnabled:           boolPtr(resp.Spec.GpuEnabled),
+		HAControlPlane:       boolPtr(resp.Spec.HAControlPlane),
+		KubernetesVersion:    resp.Spec.KubernetesVersion,
+		Region:               resp.Spec.Region,
+		PreemptionWebhookURL: resp.Spec.Webhook,
+		APIServerEndpoint:    resp.Status.APIServerEndpoint,
+		AssignedServers:      resp.Status.AssignedServers,
+		SpotNodepools:        spotNodePools,
+		OnDemandNodePools:    onDemandNodePools,
+		Status:               resp.Status.Phase,
+		Message:              resp.Status.Reason,
+	}
+}
+
+func boolPtr(b bool) *bool { return &b }
+
+func stringPtr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }
 
 func (c *RackspaceSpotClient) GetCloudspaceConfig(ctx context.Context, namespace, name string) (string, error) {
