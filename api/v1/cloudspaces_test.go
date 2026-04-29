@@ -225,11 +225,11 @@ func TestUpdateCloudspace_OnlyWebhook(t *testing.T) {
 }
 
 func TestBoolPtr(t *testing.T) {
-	val := boolPtr(true)
+	val := BoolPtr(true)
 	if *val != true {
 		t.Error("expected true")
 	}
-	val2 := boolPtr(false)
+	val2 := BoolPtr(false)
 	if *val2 != false {
 		t.Error("expected false")
 	}
@@ -327,7 +327,7 @@ func TestUpdateSpotNodePool_AutoscalingNil(t *testing.T) {
 		Org:         "test-org",
 		Cloudspace:  "test-cs",
 		ServerClass: "test-sc",
-		Desired:     3,
+		Desired:     IntPtr(3),
 		Autoscaling: nil,
 	}
 
@@ -369,7 +369,7 @@ func TestUpdateSpotNodePool_AutoscalingSet(t *testing.T) {
 		Org:         "test-org",
 		Cloudspace:  "test-cs",
 		ServerClass: "test-sc",
-		Desired:     3,
+		Desired:     IntPtr(3),
 		Autoscaling: &Autoscaling{
 			Enabled:  true,
 			MinNodes: int64(0),
@@ -422,7 +422,7 @@ func TestUpdateOnDemandNodePool_AutoscalingNil(t *testing.T) {
 		Org:         "test-org",
 		Cloudspace:  "test-cs",
 		ServerClass: "test-sc",
-		Desired:     2,
+		Desired:     IntPtr(2),
 		Autoscaling: nil,
 	}
 

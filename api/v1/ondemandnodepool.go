@@ -56,7 +56,7 @@ func (c *RackspaceSpotClient) ListOnDemandNodePools(ctx context.Context, org, cl
 			Org:                  org,
 			Cloudspace:           item.Spec.CloudSpace,
 			ServerClass:          item.Spec.ServerClass,
-			Desired:              item.Spec.Desired,
+			Desired:              IntPtr(item.Spec.Desired),
 			WonCount:             item.Status.ReservedCount,
 			Status:               item.Status.ReservedStatus,
 			OnDemandPricePerHour: onDemandPoolcost,
@@ -77,6 +77,12 @@ func (c *RackspaceSpotClient) CreateOnDemandNodePool(ctx context.Context, org st
 	}
 	if err := ValidateResourceName(pool.Name); err != nil {
 		return fmt.Errorf("invalid node pool name: %w", err)
+	}
+	if pool.Autoscaling == nil {
+		return fmt.Errorf("autoscaling configuration is required for on-demand node pool creation")
+	}
+	if pool.Desired == nil {
+		return fmt.Errorf("desired count is required for on-demand node pool creation")
 	}
 	serverClass, err := c.GetServerClass(ctx, pool.ServerClass)
 	if err != nil {
@@ -108,7 +114,7 @@ func (c *RackspaceSpotClient) CreateOnDemandNodePool(ctx context.Context, org st
 		Spec: OnDemandNodePoolSpec{
 			CommonNodePoolSpec: CommonNodePoolSpec{
 				ServerClass:       pool.ServerClass,
-				Desired:           pool.Desired,
+				Desired:           *pool.Desired,
 				CloudSpace:        pool.Cloudspace,
 				CustomAnnotations: pool.CustomAnnotations,
 				CustomLabels:      pool.CustomLabels,
@@ -197,7 +203,7 @@ func (c *RackspaceSpotClient) GetOnDemandNodePool(ctx context.Context, org, name
 		Org:                  org,
 		Cloudspace:           cloudspaceName,
 		ServerClass:          interm.Spec.ServerClass,
-		Desired:              interm.Spec.Desired,
+		Desired:              IntPtr(interm.Spec.Desired),
 		WonCount:             interm.Status.ReservedCount,
 		Status:               interm.Status.ReservedStatus,
 		OnDemandPricePerHour: serverClass.OnDemandPricePerHour,

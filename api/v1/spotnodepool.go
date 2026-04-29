@@ -50,7 +50,7 @@ func (c *RackspaceSpotClient) ListSpotNodePools(ctx context.Context, org, clouds
 			Org:               org,
 			Cloudspace:        item.Spec.CloudSpace,
 			ServerClass:       item.Spec.ServerClass,
-			Desired:           item.Spec.Desired,
+			Desired:           IntPtr(item.Spec.Desired),
 			BidPrice:          "$" + item.Spec.BidPrice,
 			WonCount:          item.Status.WonCount,
 			Status:            item.Status.BidStatus,
@@ -93,6 +93,13 @@ func (c *RackspaceSpotClient) CreateSpotNodePool(ctx context.Context, org string
 	}
 	url := fmt.Sprintf("%s/apis/ngpc.rxt.io/v1/namespaces/%s/spotnodepools", c.BaseURL, orgID)
 
+	if pool.Autoscaling == nil {
+		return fmt.Errorf("autoscaling configuration is required for spot node pool creation")
+	}
+	if pool.Desired == nil {
+		return fmt.Errorf("desired count is required for spot node pool creation")
+	}
+
 	spotNodePoolCreateRequestBody := SpotNodePoolRequestBody{
 		APIVersion: "ngpc.rxt.io/v1",
 		Kind:       "SpotNodePool",
@@ -106,7 +113,7 @@ func (c *RackspaceSpotClient) CreateSpotNodePool(ctx context.Context, org string
 		Spec: SpotNodePoolSpec{
 			CommonNodePoolSpec: CommonNodePoolSpec{
 				ServerClass:       pool.ServerClass,
-				Desired:           pool.Desired,
+				Desired:           *pool.Desired,
 				CloudSpace:        pool.Cloudspace,
 				CustomAnnotations: pool.CustomAnnotations,
 				CustomLabels:      pool.CustomLabels,
@@ -237,7 +244,7 @@ func (c *RackspaceSpotClient) GetSpotNodePool(ctx context.Context, org, name str
 		CustomAnnotations: interm.Spec.CustomAnnotations,
 		CustomLabels:      interm.Spec.CustomLabels,
 		CustomTaints:      interm.Spec.CustomTaints,
-		Desired:           interm.Spec.Desired,
+		Desired:           IntPtr(interm.Spec.Desired),
 		BidPrice:          "$" + interm.Spec.BidPrice,
 		WonCount:          interm.Status.WonCount,
 		Status:            interm.Status.BidStatus,

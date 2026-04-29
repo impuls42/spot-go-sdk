@@ -250,7 +250,7 @@ type OnDemandNodePoolCreateRequestBody struct {
 }
 
 type SpotNodePoolUpdateSpec struct {
-	Desired           int                   `json:"desired,omitempty"`
+	Desired           *int                  `json:"desired,omitempty"`
 	BidPrice          string                `json:"bidPrice,omitempty"`
 	CustomAnnotations map[string]string     `json:"customAnnotations,omitempty"`
 	CustomLabels      map[string]string     `json:"customLabels,omitempty"`
@@ -259,7 +259,7 @@ type SpotNodePoolUpdateSpec struct {
 }
 
 type OnDemandNodePoolUpdateSpec struct {
-	Desired           int                   `json:"desired,omitempty"`
+	Desired           *int                  `json:"desired,omitempty"`
 	CustomAnnotations map[string]string     `json:"customAnnotations,omitempty"`
 	CustomLabels      map[string]string     `json:"customLabels,omitempty"`
 	CustomTaints      []interface{}         `json:"customTaints,omitempty"`

@@ -54,7 +54,7 @@ type SpotNodePool struct {
 	Org               string            `json:"org,omitempty" yaml:"org,omitempty"`
 	Cloudspace        string            `json:"cloudspace,omitempty" yaml:"cloudspace,omitempty"`
 	ServerClass       string            `json:"serverClass,omitempty" yaml:"serverClass,omitempty"`
-	Desired           int               `json:"desired,omitempty" yaml:"desired,omitempty"`
+	Desired           *int              `json:"desired,omitempty" yaml:"desired,omitempty"`
 	WonCount          int               `json:"wonCount,omitempty" yaml:"wonCount,omitempty"`
 	CustomAnnotations map[string]string `json:"customAnnotations,omitempty" yaml:"customAnnotations,omitempty"`
 	CustomLabels      map[string]string `json:"customLabels,omitempty" yaml:"customLabels,omitempty"`
@@ -76,7 +76,7 @@ type OnDemandNodePool struct {
 	Org                  string            `json:"org,omitempty" yaml:"org,omitempty"`
 	Cloudspace           string            `json:"cloudspace,omitempty" yaml:"cloudspace,omitempty"`
 	ServerClass          string            `json:"serverClass,omitempty" yaml:"serverClass,omitempty"`
-	Desired              int               `json:"desired,omitempty" yaml:"desired,omitempty"`
+	Desired              *int              `json:"desired,omitempty" yaml:"desired,omitempty"`
 	WonCount             int               `json:"wonCount,omitempty" yaml:"wonCount,omitempty"`
 	CustomAnnotations    map[string]string `json:"customAnnotations,omitempty" yaml:"customAnnotations,omitempty"`
 	CustomLabels         map[string]string `json:"customLabels,omitempty" yaml:"customLabels,omitempty"`

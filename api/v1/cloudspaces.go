@@ -70,7 +70,7 @@ func (c *RackspaceSpotClient) CreateCloudspace(ctx context.Context, cs CloudSpac
 		return fmt.Errorf("organization '%s' not found", cs.Org)
 	}
 
-	gpuEnabled := boolPtr(false)
+	gpuEnabled := BoolPtr(false)
 	if cs.GpuEnabled != nil {
 		gpuEnabled = cs.GpuEnabled
 	}
@@ -249,8 +249,8 @@ func cloudSpaceFromResponse(org string, resp *cloudSpaceGetResponse, spotNodePoo
 		CreationTimestamp:    resp.Metadata.CreationTimestamp,
 		CNI:                  resp.Spec.CNI,
 		DeploymentType:       resp.Spec.DeploymentType,
-		GpuEnabled:           boolPtr(resp.Spec.GpuEnabled),
-		HAControlPlane:       boolPtr(resp.Spec.HAControlPlane),
+		GpuEnabled:           BoolPtr(resp.Spec.GpuEnabled),
+		HAControlPlane:       BoolPtr(resp.Spec.HAControlPlane),
 		KubernetesVersion:    resp.Spec.KubernetesVersion,
 		Region:               resp.Spec.Region,
 		PreemptionWebhookURL: resp.Spec.Webhook,
@@ -263,7 +263,9 @@ func cloudSpaceFromResponse(org string, resp *cloudSpaceGetResponse, spotNodePoo
 	}
 }
 
-func boolPtr(b bool) *bool { return &b }
+func BoolPtr(b bool) *bool { return &b }
+
+func IntPtr(i int) *int { return &i }
 
 func stringPtr(s string) *string {
 	if s == "" {

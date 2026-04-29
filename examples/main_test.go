@@ -59,7 +59,7 @@ func TestCreateCloudspace(t *testing.T) {
 		Org:         "test-sdk-org",
 		Cloudspace:  "test-sdk-cloudspace",
 		ServerClass: "ch.vs1.large-dfw",
-		Desired:     1,
+		Desired:     v1.IntPtr(1),
 		CustomAnnotations: map[string]string{
 			"example.com/annotation": "value",
 		},
@@ -175,7 +175,7 @@ func TestCreateCloudspace_Error(t *testing.T) {
 		Org:         "hooli",
 		Cloudspace:  "sdk-cloudspace",
 		ServerClass: "ch.vs1.large-dfw",
-		Desired:     1,
+		Desired:     v1.IntPtr(1),
 		CustomAnnotations: map[string]string{
 			"example.com/annotation": "value",
 		},
