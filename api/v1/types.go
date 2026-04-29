@@ -140,35 +140,35 @@ type PriceDetails struct {
 // Pointer fields distinguish "not provided" (nil) from "explicitly set to zero value"
 // for PATCH semantics.
 type CloudSpaceUpdateOptions struct {
-	Name                 string
-	KubernetesVersion    *string
-	PreemptionWebhookURL *string
-	CNI                  *string
-	HAControlPlane       *bool
-	GpuEnabled           *bool
+	Name                 string  `json:"name" yaml:"name"`
+	KubernetesVersion    *string `json:"kubernetesVersion,omitempty" yaml:"kubernetesVersion,omitempty"`
+	PreemptionWebhookURL *string `json:"preEmptionWebhookURL,omitempty" yaml:"preEmptionWebhookURL,omitempty"`
+	CNI                  *string `json:"cni,omitempty" yaml:"cni,omitempty"`
+	HAControlPlane       *bool   `json:"HAControlPlane,omitempty" yaml:"HAControlPlane,omitempty"`
+	GpuEnabled           *bool   `json:"gpuEnabled,omitempty" yaml:"gpuEnabled,omitempty"`
 }
 
 // SpotNodePoolUpdateOptions contains only the mutable fields for updating a spot node pool.
 // Pointer fields distinguish "not provided" (nil) from "explicitly set to zero value"
 // for PATCH semantics.
 type SpotNodePoolUpdateOptions struct {
-	Name              string
-	Desired           *int
-	BidPrice          string
-	CustomAnnotations map[string]string
-	CustomLabels      map[string]string
-	CustomTaints      []interface{}
-	Autoscaling       *Autoscaling
+	Name              string            `json:"name" yaml:"name"`
+	Desired           *int              `json:"desired,omitempty" yaml:"desired,omitempty"`
+	BidPrice          string            `json:"bidPrice,omitempty" yaml:"bidPrice,omitempty"`
+	CustomAnnotations map[string]string `json:"customAnnotations,omitempty" yaml:"customAnnotations,omitempty"`
+	CustomLabels      map[string]string `json:"customLabels,omitempty" yaml:"customLabels,omitempty"`
+	CustomTaints      []interface{}     `json:"customTaints,omitempty" yaml:"customTaints,omitempty"`
+	Autoscaling       *Autoscaling      `json:"autoscaling,omitempty" yaml:"autoscaling,omitempty"`
 }
 
 // OnDemandNodePoolUpdateOptions contains only the mutable fields for updating an on-demand node pool.
 // Pointer fields distinguish "not provided" (nil) from "explicitly set to zero value"
 // for PATCH semantics.
 type OnDemandNodePoolUpdateOptions struct {
-	Name              string
-	Desired           *int
-	CustomAnnotations map[string]string
-	CustomLabels      map[string]string
-	CustomTaints      []interface{}
-	Autoscaling       *Autoscaling
+	Name              string            `json:"name" yaml:"name"`
+	Desired           *int              `json:"desired,omitempty" yaml:"desired,omitempty"`
+	CustomAnnotations map[string]string `json:"customAnnotations,omitempty" yaml:"customAnnotations,omitempty"`
+	CustomLabels      map[string]string `json:"customLabels,omitempty" yaml:"customLabels,omitempty"`
+	CustomTaints      []interface{}     `json:"customTaints,omitempty" yaml:"customTaints,omitempty"`
+	Autoscaling       *Autoscaling      `json:"autoscaling,omitempty" yaml:"autoscaling,omitempty"`
 }

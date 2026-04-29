@@ -191,9 +191,10 @@ type autoscalingWire struct {
 	MaxNodes int64 `json:"maxNodes"`
 }
 
-// autoscalingWirePatch is used in PATCH (merge-update) request bodies.
-// Pointer fields with omitempty allow callers to leave individual fields
-// unchanged: nil means "don't touch", non-nil means "set to this value".
+// autoscalingWirePatch is the merge-update wire shape for autoscaling.
+// Pointer fields with omitempty control whether a field is serialized into the
+// PATCH payload. The public update APIs currently expose autoscaling as an
+// all-or-nothing replacement, not as a per-field patch contract.
 type autoscalingWirePatch struct {
 	Enabled  *bool  `json:"enabled,omitempty"`
 	MinNodes *int64 `json:"minNodes,omitempty"`

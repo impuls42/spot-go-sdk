@@ -327,9 +327,14 @@ func TestUpdateSpotNodePool_AutoscalingNil(t *testing.T) {
 	}
 
 	var parsed map[string]interface{}
-	json.Unmarshal(receivedBody, &parsed)
+	if err := json.Unmarshal(receivedBody, &parsed); err != nil {
+		t.Fatalf("failed to unmarshal request body: %v", err)
+	}
 
-	spec := parsed["spec"].(map[string]interface{})
+	spec, ok := parsed["spec"].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected spec to be present in request body")
+	}
 	if _, exists := spec["autoscaling"]; exists {
 		t.Error("autoscaling should be omitted when nil (no clobber)")
 	}
@@ -370,9 +375,14 @@ func TestUpdateSpotNodePool_AutoscalingSet(t *testing.T) {
 	}
 
 	var parsed map[string]interface{}
-	json.Unmarshal(receivedBody, &parsed)
+	if err := json.Unmarshal(receivedBody, &parsed); err != nil {
+		t.Fatalf("failed to unmarshal request body: %v", err)
+	}
 
-	spec := parsed["spec"].(map[string]interface{})
+	spec, ok := parsed["spec"].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected spec to be present in request body")
+	}
 	autoscaling, ok := spec["autoscaling"].(map[string]interface{})
 	if !ok {
 		t.Fatal("expected autoscaling to be present in spec")
@@ -415,9 +425,14 @@ func TestUpdateOnDemandNodePool_AutoscalingNil(t *testing.T) {
 	}
 
 	var parsed map[string]interface{}
-	json.Unmarshal(receivedBody, &parsed)
+	if err := json.Unmarshal(receivedBody, &parsed); err != nil {
+		t.Fatalf("failed to unmarshal request body: %v", err)
+	}
 
-	spec := parsed["spec"].(map[string]interface{})
+	spec, ok := parsed["spec"].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected spec to be present in request body")
+	}
 	if _, exists := spec["autoscaling"]; exists {
 		t.Error("autoscaling should be omitted when nil (no clobber)")
 	}

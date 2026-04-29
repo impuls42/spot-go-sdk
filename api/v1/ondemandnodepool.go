@@ -223,10 +223,6 @@ func (c *RackspaceSpotClient) UpdateOnDemandNodePool(ctx context.Context, org st
 		return fmt.Errorf("invalid node pool name: %w", err)
 	}
 
-	if opts.Name == "" {
-		return fmt.Errorf("name must be provided")
-	}
-
 	exists, orgID, err := c.getOrgIDIFExists(ctx, org)
 	if err != nil {
 		return err
