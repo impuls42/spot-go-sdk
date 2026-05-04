@@ -331,3 +331,138 @@ type ListRegionsResponse struct {
 		Spec       RegionSpec       `json:"spec"`
 	} `json:"items"`
 }
+
+// --- VM Backend Types ---
+
+// VMCloudSpace API response types
+type vmCloudSpaceGetResponse struct {
+	Metadata struct {
+		Name              string    `json:"name"`
+		Namespace         string    `json:"namespace"`
+		CreationTimestamp time.Time `json:"creationTimestamp"`
+	} `json:"metadata"`
+	Spec struct {
+		BidRequests []string `json:"bidRequests"`
+		Region      string   `json:"region"`
+		Webhook     string   `json:"webhook"`
+		VMSshKeyRef struct {
+			Name      string `json:"name"`
+			Namespace string `json:"namespace"`
+		} `json:"vmSshKeyRef"`
+	} `json:"spec"`
+	Status struct {
+		AssignedServers map[string]VMAssignedServer `json:"assignedServers"`
+		Bids            map[string]Bid              `json:"bids"`
+		Phase           string                      `json:"phase"`
+		Reason          string                      `json:"reason"`
+		Health          string                      `json:"health"`
+	} `json:"status"`
+}
+
+type vmCloudSpaceListResponse struct {
+	Items []vmCloudSpaceGetResponse `json:"items"`
+}
+
+type VMCloudSpaceCreateRequestBody struct {
+	APIVersion string `json:"apiVersion"`
+	Kind       string `json:"kind"`
+	Metadata   struct {
+		Name      string `json:"name"`
+		Namespace string `json:"namespace"`
+	} `json:"metadata"`
+	Spec struct {
+		Region      string `json:"region"`
+		Webhook     string `json:"webhook,omitempty"`
+		VMSshKeyRef struct {
+			Name      string `json:"name"`
+			Namespace string `json:"namespace"`
+		} `json:"vmSshKeyRef"`
+	} `json:"spec"`
+}
+
+// VMCloudSpace update request body - only Webhook field is allowed to be modified
+type VMCloudSpaceUpdateRequestBody struct {
+	Spec struct {
+		Webhook string `json:"webhook"`
+	} `json:"spec"`
+}
+
+// VMPool API response types
+type vmPoolGetResponse struct {
+	APIVersion string                        `json:"apiVersion"`
+	Kind       string                        `json:"kind"`
+	Metadata   ResourceMetadataWithTimestamp `json:"metadata"`
+	Spec       struct {
+		BidPrice     string `json:"bidPrice"`
+		Desired      int    `json:"desired"`
+		PoolType     string `json:"poolType"`
+		ServerClass  string `json:"serverClass"`
+		VMCloudSpace string `json:"vmCloudSpace"`
+		VMImage      string `json:"vmImage"`
+		VMUserData   string `json:"vmUserData,omitempty"`
+	} `json:"spec"`
+	Status struct {
+		BidStatus string `json:"bidStatus"`
+		WonCount  int    `json:"wonCount"`
+	} `json:"status"`
+}
+
+type vmPoolListResponse struct {
+	APIVersion string              `json:"apiVersion"`
+	Items      []vmPoolGetResponse `json:"items"`
+}
+
+type VMPoolCreateRequestBody struct {
+	APIVersion string     `json:"apiVersion"`
+	Kind       string     `json:"kind"`
+	Metadata   ObjectMeta `json:"metadata"`
+	Spec       struct {
+		BidPrice     string `json:"bidPrice"`
+		Desired      int    `json:"desired"`
+		PoolType     string `json:"poolType,omitempty"`
+		ServerClass  string `json:"serverClass"`
+		VMCloudSpace string `json:"vmCloudSpace"`
+		VMImage      string `json:"vmImage,omitempty"`
+		VMUserData   string `json:"vmUserData,omitempty"`
+	} `json:"spec"`
+}
+
+type VMPoolUpdateRequestBody struct {
+	Spec struct {
+		Desired  int    `json:"desired,omitempty"`
+		BidPrice string `json:"bidPrice,omitempty"`
+	} `json:"spec"`
+}
+
+// VMSSHKey API response types
+type vmSSHKeyGetResponse struct {
+	APIVersion string                        `json:"apiVersion"`
+	Kind       string                        `json:"kind"`
+	Metadata   ResourceMetadataWithTimestamp `json:"metadata"`
+	Spec       struct {
+		PublicKey   string `json:"publicKey"`
+		Description string `json:"description"`
+	} `json:"spec"`
+	Status struct {
+		Fingerprint string `json:"fingerprint"`
+		Validated   bool   `json:"validated"`
+	} `json:"status"`
+}
+
+type vmSSHKeyListResponse struct {
+	APIVersion string                `json:"apiVersion"`
+	Items      []vmSSHKeyGetResponse `json:"items"`
+}
+
+type VMSSHKeyCreateRequestBody struct {
+	APIVersion string `json:"apiVersion"`
+	Kind       string `json:"kind"`
+	Metadata   struct {
+		Name      string `json:"name"`
+		Namespace string `json:"namespace"`
+	} `json:"metadata"`
+	Spec struct {
+		PublicKey   string `json:"publicKey"`
+		Description string `json:"description,omitempty"`
+	} `json:"spec"`
+}

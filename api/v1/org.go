@@ -24,46 +24,63 @@ func (c *RackspaceSpotClient) ListOrganizations(ctx context.Context) ([]Organiza
 	return response.Organizations, nil
 }
 
-func (c *RackspaceSpotClient) getOrgIDIFExists(ctx context.Context, orgName string) (bool, string, error) {
-	url := fmt.Sprintf("%s/apis/auth.ngpc.rxt.io/v1/organizations", c.BaseURL) // Correct URL
+func (c *RackspaceSpotClient) getOrgIDIFExists(ctx context.Context, orgNameOrID string) (bool, string, error) {
+	url := fmt.Sprintf("%s/apis/auth.ngpc.rxt.io/v1/organizations", c.BaseURL)
 
-	// Structure for decoding
 	var response struct {
 		Organizations []Organization `json:"organizations"`
 	}
 
-	// Pass &response to doRequest so it decodes automatically
 	err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &response)
 	if err != nil {
-		return false, "", c.handleAPIError(err, "organization", orgName, "find")
+		return false, "", c.handleAPIError(err, "organization", orgNameOrID, "find")
 	}
 
+	// First try matching by org name (preferred)
 	for _, org := range response.Organizations {
-		if org.Name == orgName {
+		if org.Name == orgNameOrID {
 			org.ID = strings.ReplaceAll(org.ID, "_", "-")
 			org.ID = strings.ToLower(org.ID)
 			return true, org.ID, nil
 		}
 	}
+
+	// Fallback: try matching by org ID (handles case where user passes org-id)
+	for _, org := range response.Organizations {
+		normalizedID := strings.ToLower(strings.ReplaceAll(org.ID, "_", "-"))
+		if normalizedID == orgNameOrID || org.ID == orgNameOrID {
+			return true, normalizedID, nil
+		}
+	}
 	return false, "", nil
 }
 
-func (c *RackspaceSpotClient) getOrgIDIFExistsWithoutNormalizing(ctx context.Context, orgName string) (bool, string, error) {
-	url := fmt.Sprintf("%s/apis/auth.ngpc.rxt.io/v1/organizations", c.BaseURL) // Correct URL
+func (c *RackspaceSpotClient) GetOrgID(ctx context.Context, orgNameOrID string) (bool, string, error) {
+	return c.getOrgIDIFExists(ctx, orgNameOrID)
+}
 
-	// Structure for decoding
+func (c *RackspaceSpotClient) getOrgIDIFExistsWithoutNormalizing(ctx context.Context, orgNameOrID string) (bool, string, error) {
+	url := fmt.Sprintf("%s/apis/auth.ngpc.rxt.io/v1/organizations", c.BaseURL)
+
 	var response struct {
 		Organizations []Organization `json:"organizations"`
 	}
 
-	// Pass &response to doRequest so it decodes automatically
 	err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &response)
 	if err != nil {
-		return false, "", c.handleAPIError(err, "organization", orgName, "find")
+		return false, "", c.handleAPIError(err, "organization", orgNameOrID, "find")
 	}
 
+	// First try matching by org name (preferred)
 	for _, org := range response.Organizations {
-		if org.Name == orgName {
+		if org.Name == orgNameOrID {
+			return true, org.ID, nil
+		}
+	}
+
+	// Fallback: try matching by org ID
+	for _, org := range response.Organizations {
+		if org.ID == orgNameOrID {
 			return true, org.ID, nil
 		}
 	}

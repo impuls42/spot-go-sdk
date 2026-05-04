@@ -1,6 +1,6 @@
 # Rackspace Spot Go SDK (In Development)
 
-This package provides an idiomatic Go SDK for interacting with the Rackspace Spot platform. It enables developers and DevOps teams to programmatically manage cloud resources such as cloudspaces (Kubernetes clusters), spot node pools, and on-demand node pools.
+This package provides an idiomatic Go SDK for interacting with the Rackspace Spot platform. It enables developers and DevOps teams to programmatically manage cloud resources such as kubernetes cloudspaces (Kubernetes clusters), Virtual Machines in form of spot node pools, and on-demand node pools. Refer to [VM_TESTING_GUIDE.md](VM_TESTING_GUIDE.md) for instructions on specifically testing Virtual Machine (VM) functionality.
 
 **Versioned API structure:**
 - All types and client logic for API v1 are in `api/v1/` (import as `v1`).
@@ -47,7 +47,9 @@ You need a Rackspace Spot refresh token. Use your refresh token to create spotCl
 
 ### 3. Example Usage
 
-See [`examples/main.go`](examples/main.go) for a full example. Here is a minimal usage snippet:
+See [`examples/main.go`](examples/main.go) for a full example of Kubernetes Cloudspaces and [`examples/test_vm_full.go`](examples/test_vm_full.go) for a full example of Virtual Machines.
+
+Here is a minimal usage snippet:
 
 ```go
 
