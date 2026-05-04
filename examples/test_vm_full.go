@@ -239,7 +239,7 @@ func testGetVMCloudSpace(ctx context.Context, client *v1.RackspaceSpotClient, na
 func testUpdateVMCloudSpace(ctx context.Context, client *v1.RackspaceSpotClient, name string) {
 	fmt.Printf("✏️  Test: Update VM CloudSpace '%s' (Webhook field)\n", name)
 
-	updatedWebhook := "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
+	updatedWebhook := "https://example.com/webhook/test"
 
 	vmcs := v1.VMCloudSpace{
 		Name:    name,
