@@ -36,19 +36,10 @@ func (c *RackspaceSpotClient) getOrgIDIFExists(ctx context.Context, orgNameOrID 
 		return false, "", c.handleAPIError(err, "organization", orgNameOrID, "find")
 	}
 
-	// First try matching by org name (preferred)
-	for _, org := range response.Organizations {
-		if org.Name == orgNameOrID {
-			org.ID = strings.ReplaceAll(org.ID, "_", "-")
-			org.ID = strings.ToLower(org.ID)
-			return true, org.ID, nil
-		}
-	}
-
-	// Fallback: try matching by org ID (handles case where user passes org-id)
 	for _, org := range response.Organizations {
 		normalizedID := strings.ToLower(strings.ReplaceAll(org.ID, "_", "-"))
-		if normalizedID == orgNameOrID || org.ID == orgNameOrID {
+		// Try matching by org name (preferred) or org ID (fallback)
+		if org.Name == orgNameOrID || normalizedID == orgNameOrID || org.ID == orgNameOrID {
 			return true, normalizedID, nil
 		}
 	}
