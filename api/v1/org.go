@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 // ListOrganizations retrieves all organizations accessible by the user.
@@ -36,9 +37,10 @@ func (c *RackspaceSpotClient) getOrgIDIFExists(ctx context.Context, orgNameOrID 
 	}
 
 	for _, org := range response.Organizations {
+		normalizedID := strings.ToLower(strings.ReplaceAll(org.ID, "_", "-"))
 		// Try matching by org name (preferred) or org ID (fallback)
-		if org.Name == orgNameOrID || org.ID == orgNameOrID {
-			return true, org.ID, nil
+		if org.Name == orgNameOrID || normalizedID == orgNameOrID || org.ID == orgNameOrID {
+			return true, normalizedID, nil
 		}
 	}
 	return false, "", nil
