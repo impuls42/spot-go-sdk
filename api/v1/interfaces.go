@@ -54,6 +54,32 @@ type SpotPricingAPI interface {
 	GetMinimumBidPriceForServerClass(ctx context.Context, serverClassSpec *ServerClassSpec) string
 }
 
+// VMCloudSpaceAPI defines VM cloud space methods.
+type VMCloudSpaceAPI interface {
+	ListVMCloudSpaces(ctx context.Context, org string) (*VMCloudSpaceList, error)
+	CreateVMCloudSpace(ctx context.Context, vmcs VMCloudSpace) error
+	GetVMCloudSpace(ctx context.Context, org, name string) (*VMCloudSpace, error)
+	UpdateVMCloudSpace(ctx context.Context, org string, vmcs VMCloudSpace) error
+	DeleteVMCloudSpace(ctx context.Context, org, name string) error
+}
+
+// VMPoolAPI defines VM pool methods.
+type VMPoolAPI interface {
+	ListVMPools(ctx context.Context, org string, vmCloudSpace string) ([]*VMPool, error)
+	CreateVMPool(ctx context.Context, org string, pool VMPool) error
+	UpdateVMPool(ctx context.Context, org string, pool VMPool) error
+	GetVMPool(ctx context.Context, org, name string) (*VMPool, error)
+	DeleteVMPool(ctx context.Context, org, name string) error
+}
+
+// VMSSHKeyAPI defines VM SSH key methods.
+type VMSSHKeyAPI interface {
+	ListVMSSHKeys(ctx context.Context, org string) (*VMSSHKeyList, error)
+	CreateVMSSHKey(ctx context.Context, key VMSSHKey) error
+	GetVMSSHKey(ctx context.Context, org, name string) (*VMSSHKey, error)
+	DeleteVMSSHKey(ctx context.Context, org, name string) error
+}
+
 // SpotAPI defines the complete interface for the Rackspace Spot SDK client.
 // It embeds all the specific APIs to provide a unified interface.
 type SpotAPI interface {
@@ -65,4 +91,7 @@ type SpotAPI interface {
 	SpotRegionsAPI
 	SpotServerClassesAPI
 	SpotPricingAPI
+	VMCloudSpaceAPI
+	VMPoolAPI
+	VMSSHKeyAPI
 }
