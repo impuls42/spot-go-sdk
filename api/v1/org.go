@@ -24,48 +24,28 @@ func (c *RackspaceSpotClient) ListOrganizations(ctx context.Context) ([]Organiza
 	return response.Organizations, nil
 }
 
-func (c *RackspaceSpotClient) getOrgIDIFExists(ctx context.Context, orgName string) (bool, string, error) {
-	url := fmt.Sprintf("%s/apis/auth.ngpc.rxt.io/v1/organizations", c.BaseURL) // Correct URL
+func (c *RackspaceSpotClient) getOrgIDIFExists(ctx context.Context, orgNameOrID string) (bool, string, error) {
+	url := fmt.Sprintf("%s/apis/auth.ngpc.rxt.io/v1/organizations", c.BaseURL)
 
-	// Structure for decoding
 	var response struct {
 		Organizations []Organization `json:"organizations"`
 	}
 
-	// Pass &response to doRequest so it decodes automatically
 	err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &response)
 	if err != nil {
-		return false, "", c.handleAPIError(err, "organization", orgName, "find")
+		return false, "", c.handleAPIError(err, "organization", orgNameOrID, "find")
 	}
 
 	for _, org := range response.Organizations {
-		if org.Name == orgName {
-			org.ID = strings.ReplaceAll(org.ID, "_", "-")
-			org.ID = strings.ToLower(org.ID)
-			return true, org.ID, nil
+		normalizedID := strings.ToLower(strings.ReplaceAll(org.ID, "_", "-"))
+		// Try matching by org name (preferred) or org ID (fallback)
+		if org.Name == orgNameOrID || normalizedID == orgNameOrID || org.ID == orgNameOrID {
+			return true, normalizedID, nil
 		}
 	}
 	return false, "", nil
 }
 
-func (c *RackspaceSpotClient) getOrgIDIFExistsWithoutNormalizing(ctx context.Context, orgName string) (bool, string, error) {
-	url := fmt.Sprintf("%s/apis/auth.ngpc.rxt.io/v1/organizations", c.BaseURL) // Correct URL
-
-	// Structure for decoding
-	var response struct {
-		Organizations []Organization `json:"organizations"`
-	}
-
-	// Pass &response to doRequest so it decodes automatically
-	err := c.doRequest(ctx, http.MethodGet, url, nil, c.authHeader(), &response)
-	if err != nil {
-		return false, "", c.handleAPIError(err, "organization", orgName, "find")
-	}
-
-	for _, org := range response.Organizations {
-		if org.Name == orgName {
-			return true, org.ID, nil
-		}
-	}
-	return false, "", nil
+func (c *RackspaceSpotClient) GetOrgID(ctx context.Context, orgNameOrID string) (bool, string, error) {
+	return c.getOrgIDIFExists(ctx, orgNameOrID)
 }

@@ -983,3 +983,205 @@ func (mr *MockSpotAPIMockRecorder) UpdateSpotNodePool(ctx, org, opts any) *gomoc
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSpotNodePool", reflect.TypeOf((*MockSpotAPI)(nil).UpdateSpotNodePool), ctx, org, opts)
 }
+
+// CreateVMCloudSpace mocks base method.
+func (m *MockSpotAPI) CreateVMCloudSpace(ctx context.Context, vmcs rxtspot.VMCloudSpace) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateVMCloudSpace", ctx, vmcs)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CreateVMCloudSpace indicates an expected call of CreateVMCloudSpace.
+func (mr *MockSpotAPIMockRecorder) CreateVMCloudSpace(ctx, vmcs any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateVMCloudSpace", reflect.TypeOf((*MockSpotAPI)(nil).CreateVMCloudSpace), ctx, vmcs)
+}
+
+// DeleteVMCloudSpace mocks base method.
+func (m *MockSpotAPI) DeleteVMCloudSpace(ctx context.Context, org, name string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteVMCloudSpace", ctx, org, name)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteVMCloudSpace indicates an expected call of DeleteVMCloudSpace.
+func (mr *MockSpotAPIMockRecorder) DeleteVMCloudSpace(ctx, org, name any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteVMCloudSpace", reflect.TypeOf((*MockSpotAPI)(nil).DeleteVMCloudSpace), ctx, org, name)
+}
+
+// GetVMCloudSpace mocks base method.
+func (m *MockSpotAPI) GetVMCloudSpace(ctx context.Context, org, name string) (*rxtspot.VMCloudSpace, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetVMCloudSpace", ctx, org, name)
+	ret0, _ := ret[0].(*rxtspot.VMCloudSpace)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetVMCloudSpace indicates an expected call of GetVMCloudSpace.
+func (mr *MockSpotAPIMockRecorder) GetVMCloudSpace(ctx, org, name any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVMCloudSpace", reflect.TypeOf((*MockSpotAPI)(nil).GetVMCloudSpace), ctx, org, name)
+}
+
+// ListVMCloudSpaces mocks base method.
+func (m *MockSpotAPI) ListVMCloudSpaces(ctx context.Context, org string) (*rxtspot.VMCloudSpaceList, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListVMCloudSpaces", ctx, org)
+	ret0, _ := ret[0].(*rxtspot.VMCloudSpaceList)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListVMCloudSpaces indicates an expected call of ListVMCloudSpaces.
+func (mr *MockSpotAPIMockRecorder) ListVMCloudSpaces(ctx, org any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListVMCloudSpaces", reflect.TypeOf((*MockSpotAPI)(nil).ListVMCloudSpaces), ctx, org)
+}
+
+// UpdateVMCloudSpace mocks base method.
+func (m *MockSpotAPI) UpdateVMCloudSpace(ctx context.Context, org string, vmcs rxtspot.VMCloudSpace) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateVMCloudSpace", ctx, org, vmcs)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateVMCloudSpace indicates an expected call of UpdateVMCloudSpace.
+func (mr *MockSpotAPIMockRecorder) UpdateVMCloudSpace(ctx, org, vmcs any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateVMCloudSpace", reflect.TypeOf((*MockSpotAPI)(nil).UpdateVMCloudSpace), ctx, org, vmcs)
+}
+
+// CreateVMPool mocks base method.
+func (m *MockSpotAPI) CreateVMPool(ctx context.Context, org string, pool rxtspot.VMPool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateVMPool", ctx, org, pool)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CreateVMPool indicates an expected call of CreateVMPool.
+func (mr *MockSpotAPIMockRecorder) CreateVMPool(ctx, org, pool any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateVMPool", reflect.TypeOf((*MockSpotAPI)(nil).CreateVMPool), ctx, org, pool)
+}
+
+// DeleteVMPool mocks base method.
+func (m *MockSpotAPI) DeleteVMPool(ctx context.Context, org, name string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteVMPool", ctx, org, name)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteVMPool indicates an expected call of DeleteVMPool.
+func (mr *MockSpotAPIMockRecorder) DeleteVMPool(ctx, org, name any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteVMPool", reflect.TypeOf((*MockSpotAPI)(nil).DeleteVMPool), ctx, org, name)
+}
+
+// GetVMPool mocks base method.
+func (m *MockSpotAPI) GetVMPool(ctx context.Context, org, name string) (*rxtspot.VMPool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetVMPool", ctx, org, name)
+	ret0, _ := ret[0].(*rxtspot.VMPool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetVMPool indicates an expected call of GetVMPool.
+func (mr *MockSpotAPIMockRecorder) GetVMPool(ctx, org, name any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVMPool", reflect.TypeOf((*MockSpotAPI)(nil).GetVMPool), ctx, org, name)
+}
+
+// ListVMPools mocks base method.
+func (m *MockSpotAPI) ListVMPools(ctx context.Context, org, vmCloudSpace string) ([]*rxtspot.VMPool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListVMPools", ctx, org, vmCloudSpace)
+	ret0, _ := ret[0].([]*rxtspot.VMPool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListVMPools indicates an expected call of ListVMPools.
+func (mr *MockSpotAPIMockRecorder) ListVMPools(ctx, org, vmCloudSpace any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListVMPools", reflect.TypeOf((*MockSpotAPI)(nil).ListVMPools), ctx, org, vmCloudSpace)
+}
+
+// UpdateVMPool mocks base method.
+func (m *MockSpotAPI) UpdateVMPool(ctx context.Context, org string, pool rxtspot.VMPool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateVMPool", ctx, org, pool)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateVMPool indicates an expected call of UpdateVMPool.
+func (mr *MockSpotAPIMockRecorder) UpdateVMPool(ctx, org, pool any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateVMPool", reflect.TypeOf((*MockSpotAPI)(nil).UpdateVMPool), ctx, org, pool)
+}
+
+// CreateVMSSHKey mocks base method.
+func (m *MockSpotAPI) CreateVMSSHKey(ctx context.Context, key rxtspot.VMSSHKey) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateVMSSHKey", ctx, key)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CreateVMSSHKey indicates an expected call of CreateVMSSHKey.
+func (mr *MockSpotAPIMockRecorder) CreateVMSSHKey(ctx, key any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateVMSSHKey", reflect.TypeOf((*MockSpotAPI)(nil).CreateVMSSHKey), ctx, key)
+}
+
+// DeleteVMSSHKey mocks base method.
+func (m *MockSpotAPI) DeleteVMSSHKey(ctx context.Context, org, name string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteVMSSHKey", ctx, org, name)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteVMSSHKey indicates an expected call of DeleteVMSSHKey.
+func (mr *MockSpotAPIMockRecorder) DeleteVMSSHKey(ctx, org, name any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteVMSSHKey", reflect.TypeOf((*MockSpotAPI)(nil).DeleteVMSSHKey), ctx, org, name)
+}
+
+// GetVMSSHKey mocks base method.
+func (m *MockSpotAPI) GetVMSSHKey(ctx context.Context, org, name string) (*rxtspot.VMSSHKey, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetVMSSHKey", ctx, org, name)
+	ret0, _ := ret[0].(*rxtspot.VMSSHKey)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetVMSSHKey indicates an expected call of GetVMSSHKey.
+func (mr *MockSpotAPIMockRecorder) GetVMSSHKey(ctx, org, name any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVMSSHKey", reflect.TypeOf((*MockSpotAPI)(nil).GetVMSSHKey), ctx, org, name)
+}
+
+// ListVMSSHKeys mocks base method.
+func (m *MockSpotAPI) ListVMSSHKeys(ctx context.Context, org string) (*rxtspot.VMSSHKeyList, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListVMSSHKeys", ctx, org)
+	ret0, _ := ret[0].(*rxtspot.VMSSHKeyList)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListVMSSHKeys indicates an expected call of ListVMSSHKeys.
+func (mr *MockSpotAPIMockRecorder) ListVMSSHKeys(ctx, org any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListVMSSHKeys", reflect.TypeOf((*MockSpotAPI)(nil).ListVMSSHKeys), ctx, org)
+}

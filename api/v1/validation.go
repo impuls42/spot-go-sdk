@@ -50,7 +50,7 @@ func ValidateResourceName(name string) error {
 	return nil
 }
 
-// ValidateOrgName validates organization name format and prevents injection
+// ValidateOrgName validates organization name or ID format and prevents injection
 func ValidateOrgName(org string) error {
 	if org == "" {
 		return fmt.Errorf("organization name cannot be empty")

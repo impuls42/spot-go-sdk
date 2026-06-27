@@ -175,3 +175,80 @@ type OnDemandNodePoolUpdateOptions struct {
 	CustomTaints      []interface{}     `json:"customTaints,omitempty" yaml:"customTaints,omitempty"`
 	Autoscaling       *Autoscaling      `json:"autoscaling,omitempty" yaml:"autoscaling,omitempty"`
 }
+
+// VMCloudSpaceList represents a list of VM cloud spaces
+type VMCloudSpaceList struct {
+	Items []VMCloudSpace `json:"vmCloudSpaces" yaml:"vmCloudSpaces"`
+}
+
+// VMSshKeyRef represents a reference to a VM SSH key
+type VMSshKeyRef struct {
+	Name      string `json:"name" yaml:"name"`
+	Namespace string `json:"namespace,omitempty" yaml:"namespace,omitempty"`
+}
+
+// VMCloudSpace represents a VM cloud space configuration
+type VMCloudSpace struct {
+	Name              string                      `json:"name" yaml:"name"`
+	Org               string                      `json:"org" yaml:"org"`
+	CreationTimestamp time.Time                   `json:"creationTimestamp,omitempty" yaml:"creationTimestamp,omitempty"`
+	Region            string                      `json:"region" yaml:"region"`
+	Webhook           string                      `json:"webhook,omitempty" yaml:"webhook,omitempty"`
+	VMSshKeyRef       VMSshKeyRef                 `json:"vmSshKeyRef" yaml:"vmSshKeyRef"`
+	VMPools           []*VMPool                   `json:"vmPools,omitempty" yaml:"vmPools,omitempty"`
+	AssignedServers   map[string]VMAssignedServer `json:"assignedServers,omitempty" yaml:"assignedServers,omitempty"`
+	Status            string                      `json:"status,omitempty" yaml:"status,omitempty"`
+	Message           string                      `json:"message,omitempty" yaml:"message,omitempty"`
+	Health            string                      `json:"health,omitempty" yaml:"health,omitempty"`
+}
+
+// VMAssignedServer represents a server assigned to a VM cloud space
+type VMAssignedServer struct {
+	IPAddress       string `json:"ipAddress" yaml:"ipAddress"`
+	CPU             string `json:"cpu" yaml:"cpu"`
+	Memory          string `json:"memory" yaml:"memory"`
+	DisplayName     string `json:"displayName" yaml:"displayName"`
+	ServerClassName string `json:"serverClassName" yaml:"serverClassName"`
+	ServerName      string `json:"serverName" yaml:"serverName"`
+	ServerType      string `json:"serverType" yaml:"serverType"`
+	NodePoolName    string `json:"nodePoolName" yaml:"nodePoolName"`
+	State           string `json:"state" yaml:"state"`
+	Error           string `json:"error,omitempty" yaml:"error,omitempty"`
+}
+
+// VMPoolList represents a list of VM pools
+type VMPoolList struct {
+	Items []VMPool `json:"vmPools" yaml:"vmPools"`
+}
+
+// VMPool represents a VM pool configuration
+type VMPool struct {
+	Name              string    `json:"name" yaml:"name"`
+	CreationTimestamp time.Time `json:"creationTimestamp,omitempty" yaml:"creationTimestamp,omitempty"`
+	Org               string    `json:"org,omitempty" yaml:"org,omitempty"`
+	VMCloudSpace      string    `json:"vmCloudSpace,omitempty" yaml:"vmCloudSpace,omitempty"`
+	ServerClass       string    `json:"serverClass,omitempty" yaml:"serverClass,omitempty"`
+	Desired           int       `json:"desired,omitempty" yaml:"desired,omitempty"`
+	BidPrice          string    `json:"bidPrice,omitempty" yaml:"bidPrice,omitempty"`
+	PoolType          string    `json:"poolType,omitempty" yaml:"poolType,omitempty"`
+	VMImage           string    `json:"vmImage,omitempty" yaml:"vmImage,omitempty"`
+	VMUserData        string    `json:"vmUserData,omitempty" yaml:"vmUserData,omitempty"`
+	WonCount          int       `json:"wonCount,omitempty" yaml:"wonCount,omitempty"`
+	BidStatus         string    `json:"bidStatus,omitempty" yaml:"bidStatus,omitempty"`
+}
+
+// VMSSHKeyList represents a list of VM SSH keys
+type VMSSHKeyList struct {
+	Items []VMSSHKey `json:"vmSshKeys" yaml:"vmSshKeys"`
+}
+
+// VMSSHKey represents a VM SSH key
+type VMSSHKey struct {
+	Name              string    `json:"name" yaml:"name"`
+	CreationTimestamp time.Time `json:"creationTimestamp,omitempty" yaml:"creationTimestamp,omitempty"`
+	Org               string    `json:"org,omitempty" yaml:"org,omitempty"`
+	PublicKey         string    `json:"publicKey" yaml:"publicKey"`
+	Description       string    `json:"description,omitempty" yaml:"description,omitempty"`
+	Fingerprint       string    `json:"fingerprint,omitempty" yaml:"fingerprint,omitempty"`
+	Validated         bool      `json:"validated,omitempty" yaml:"validated,omitempty"`
+}
