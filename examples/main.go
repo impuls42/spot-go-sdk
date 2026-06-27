@@ -8,7 +8,7 @@ import (
 	"log"
 	"time"
 
-	v1 "github.com/rackspace-spot/spot-go-sdk/api/v1"
+	v1 "github.com/impuls42/spot-go-sdk/api/v1"
 )
 
 func main() {

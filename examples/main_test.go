@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	v1 "github.com/rackspace-spot/spot-go-sdk/api/v1"
-	"github.com/rackspace-spot/spot-go-sdk/api/v1/mocks"
+	v1 "github.com/impuls42/spot-go-sdk/api/v1"
+	"github.com/impuls42/spot-go-sdk/api/v1/mocks"
 
-	// "github.com/rackspace-spot/spot-go-sdk/api/v1/mocks" // Import your mocks package
+	// "github.com/impuls42/spot-go-sdk/api/v1/mocks" // Import your mocks package
 	"go.uber.org/mock/gomock"
 )
 

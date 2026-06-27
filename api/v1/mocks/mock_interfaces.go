@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	rxtspot "github.com/rackspace-spot/spot-go-sdk/api/v1"
+	rxtspot "github.com/impuls42/spot-go-sdk/api/v1"
 	gomock "go.uber.org/mock/gomock"
 )
 

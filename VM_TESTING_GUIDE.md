@@ -9,14 +9,14 @@ This guide explains how to test the Virtual Machines (VM) functionality in the R
 Clone this repository and use Go modules to import the SDK in your project:
 
 ```sh
-git clone https://github.com/rackspace-spot/spot-go-sdk
+git clone https://github.com/impuls42/spot-go-sdk
 cd spot-go-sdk
 ```
 
 Or add to your Go project:
 
 ```go
-import v1 "github.com/rackspace-spot/spot-go-sdk/api/v1"
+import v1 "github.com/impuls42/spot-go-sdk/api/v1"
 ```
 
 ### 2. Credentials for authentication
@@ -104,7 +104,7 @@ import (
     "context"
     "log"
     
-    v1 "github.com/rackspace-spot/spot-go-sdk/api/v1"
+    v1 "github.com/impuls42/spot-go-sdk/api/v1"
 )
 
 func main() {
